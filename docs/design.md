@@ -11,8 +11,7 @@ project-manager/
 ├── memory.db             # SQLite + sqlite-vec 向量数据库
 ├── share/                # 项目共享（全局可见）
 │   ├── projects/         # 项目信息
-│   ├── milestones/       # 里程碑
-│   ├── releases/         # 发布记录
+│   ├── milestones/       # 里程碑（含版本发布）
 │   ├── meetings/         # 会议记录
 │   ├── issues/           # 问题 + 风险
 │   └── knowledge/        # 知识库 + 参考资料
@@ -30,8 +29,7 @@ project-manager/
 | 目录 | 用途 | ID前缀 |
 |------|------|--------|
 | projects/ | 项目背景、架构 | PRJ- |
-| milestones/ | 里程碑节点 | MS- |
-| releases/ | 版本历史 | REL- |
+| milestones/ | 里程碑节点（含版本发布） | MS- |
 | meetings/ | 会议记录 | - |
 | issues/ | 问题 + 风险 | ISC- |
 | knowledge/ | 知识库 + 参考资料 | - |
@@ -107,7 +105,6 @@ dependencies = [
 # share/
 (share_dir / "projects").mkdir(parents=True, exist_ok=True)
 (share_dir / "milestones").mkdir(parents=True, exist_ok=True)
-(share_dir / "releases").mkdir(parents=True, exist_ok=True)
 (share_dir / "meetings").mkdir(parents=True, exist_ok=True)
 (share_dir / "issues").mkdir(parents=True, exist_ok=True)
 (share_dir / "knowledge").mkdir(parents=True, exist_ok=True)
