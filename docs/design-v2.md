@@ -1,0 +1,424 @@
+# Project-Manager v2 设计方案
+
+## 核心理念
+
+**数据驱动架构**：所有业务逻辑通过 `meta.yaml` 配置定义，CLI 仅执行索引引擎和检索，Skill 是唯一的协调层。
+
+**当前僵化方案** 作为参考范式（`docs/reference-v1.md`），记录从硬编码到完全可配置的设计演进。
+
+---
+
+## 架构分层
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    用户交互层                          │
+│         Skill（协调层，CLI 的唯一调用方）              │
+│  - 解析 meta.yaml / meta.md                         │
+│  - 理解用户意图                                     │
+│  - 组装结构化操作                                   │
+│  - 维护文件（切割/更新/查找 chunk）                 │
+└────────────────┬────────────────────────────────────┘
+                 │ 结构化 JSON / CLI 命令
+┌────────────────▼────────────────────────────────────┐
+│                   CLI 引擎层                         │
+│  parse  │  init  │  index  │  gc  │  retrieve      │
+│                                                         │
+│  职责：                                                │
+│  - 解析 meta.yaml，建表/重建表                       │
+│  - 索引文件（写 DB + 向量）                          │
+│  - 衰减召回（清理过期）                              │
+│  - 检索（只筛选，不加工）                            │
+└─────────────────────────────────────────────────────┘
+                 │
+┌────────────────▼────────────────────────────────────┐
+│                 数据层                               │
+│  SQLite3 + sqlite-vec（向量）                        │
+│  - memories（主表）                                  │
+│  - chunks（段落级索引）                             │
+│  - memories_vec（向量表）                           │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## 一、meta.yaml — 项目配置
+
+用户完全自定义的记忆结构定义。
+
+```yaml
+name: my-project
+version: "1"
+
+# ============================================================
+# 索引范围：路径 + 文件名正则（仅限单层，不递归）
+# ============================================================
+index_scope:
+  - path: "demands/"
+    pattern: "*.md"
+  - path: "issues/"
+    pattern: "*.md"
+  - path: "principles/"
+    pattern: "*.md"
+  - path: "logs/"
+    pattern: "*.md"
+  - path: "tmp/"
+    pattern: "*.md"
+
+# ============================================================
+# 维度定义
+# ============================================================
+dimensions:
+  # 正规维度：枚举值，用于检索筛选
+  normal:
+    - name: category
+      values: [demand, issue, principle, log, tmp]
+    - name: priority
+      values: [P0, P1, P2, P3]
+    - name: status
+      values: [open, in_progress, closed]
+
+  # 退化维度：触发衰减机制
+  decay:
+    - name: category
+      values: [tmp]
+
+# ============================================================
+# 衰减机制（多组）
+# ============================================================
+decay_groups:
+  - name: tmp_ttl
+    trigger:
+      category: tmp
+    function: ttl
+    params:
+      ttl_hours: 24
+    apply_fields: [created_at, expires_at]
+
+  - name: stale_issue
+    trigger:
+      category: issue
+      status: closed
+    function: stale_after
+    params:
+      days: 30
+    apply_fields: [updated_at]
+
+# ============================================================
+# 向量配置
+# ============================================================
+vector:
+  dimensions: 1024        # bge-m3 embedding 维度
+  table: memories_vec
+  key_column: chunk_id
+  embedding_column: embedding
+
+# ============================================================
+# chunk 切分配置
+# ============================================================
+chunk:
+  max_tokens: 512        # 每个 chunk 最大 token 数
+  overlap: 64             # 相邻 chunk 重叠 token 数
+```
+
+---
+
+## 二、meta.md — 记忆类型文档
+
+用户维护，每个 `index_scope` 条目对应的记忆类型说明。
+
+```markdown
+# 项目记忆类型说明
+
+## demands/*.md
+**含义**：需求记录
+**作用**：追踪用户需求和功能请求
+**维度设置**：
+  - category: demand（固定）
+  - priority: P0-P3（用户指定）
+  - status: open/in_progress/closed
+**更新方式**：
+  - 新增：`skill.create("demand", content)`
+  - 状态变更：`skill.update(id, status="closed")`
+
+## issues/*.md
+**含义**：问题记录
+**作用**：追踪 Bug、技术债务、风险
+**维度设置**：
+  - category: issue（固定）
+  - type: bug/risk/debt（用户指定）
+  - priority: P0-P3
+**更新方式**：由 Tester 或 Reviewer 维护
+
+## tmp/*.md
+**含义**：临时笔记
+**作用**：短期约束、一次性备注
+**维度设置**：
+  - category: tmp（固定）
+  - 24h 后自动衰减删除
+**更新方式**：`skill.create("tmp", content)`（不写入 DB 向量索引）
+```
+
+---
+
+## 三、数据库设计
+
+### 3.1 表结构
+
+```sql
+-- 主表（文件级元数据）
+CREATE TABLE memories (
+    id          TEXT PRIMARY KEY,
+    category    TEXT NOT NULL,          -- 正规维度
+    priority    TEXT,
+    status      TEXT,
+    type        TEXT,                  -- 自由维度（issue.type 等）
+    file_path   TEXT NOT NULL,
+    chunk_count INTEGER DEFAULT 0,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    expires_at  TEXT,                 -- 衰减字段（TTL 计算得出）
+    deprecated  INTEGER DEFAULT 0      -- 软删除标记
+);
+
+-- chunk 表（段落级索引）
+CREATE TABLE chunks (
+    chunk_id    TEXT PRIMARY KEY,      -- "demands/feature-A.md#chunk[0]"
+    parent_id   TEXT NOT NULL,        -- 溯源到 memories.id
+    chunk_index INTEGER,              -- chunk 在文件内的序号
+    content     TEXT NOT NULL,        -- 原始文本（用于展示和重嵌入）
+    embedding   BLOB,                 -- 向量（写入时生成）
+    created_at  TEXT,
+    updated_at  TEXT,
+    deprecated  INTEGER DEFAULT 0,    -- 软删除标记
+    FOREIGN KEY (parent_id) REFERENCES memories(id)
+);
+
+-- 向量虚拟表
+CREATE VIRTUAL TABLE memories_vec USING vec0(
+    chunk_id    TEXT,
+    embedding   FLOAT[1024]
+);
+
+-- indexes
+CREATE INDEX idx_memories_category ON memories(category);
+CREATE INDEX idx_memories_status ON memories(status);
+CREATE INDEX idx_memories_expires_at ON memories(expires_at);
+CREATE INDEX idx_chunks_parent ON chunks(parent_id);
+CREATE INDEX idx_chunks_deprecated ON chunks(deprecated);
+```
+
+### 3.2 向量表联接
+
+```sql
+-- 检索时通过 chunk_id JOIN 主表获取文件级维度
+SELECT
+    m.*,
+    c.content,
+    c.chunk_id,
+    vector_distance_cosine(mv.embedding, ?) AS score
+FROM memories_vec mv
+JOIN chunks c ON c.chunk_id = mv.chunk_id
+JOIN memories m ON m.id = c.parent_id
+WHERE m.category = 'demand'
+ORDER BY score
+LIMIT 20;
+```
+
+---
+
+## 四、衰减机制
+
+### 4.1 衰减绑定在索引阶段
+
+```
+pm index <file>
+  │
+  ├─ 解析 meta.yaml，找到文件对应的 index_scope
+  ├─ 根据 scope 的 category 查找 decay_groups
+  ├─ 如果命中 trigger，计算 expires_at
+  │     ttl:      expires_at = now + ttl_hours
+  │     stale_after: expires_at = updated_at + days
+  ├─ 写入 memories 表（含 expires_at）
+  └─ 写入 chunks 表（含向量）
+```
+
+**关键**：expire 只写在主表，chunks 通过 parent_id 继承。
+
+### 4.2 gc 召回清理
+
+```
+pm gc [--scope <path>]
+  │
+  ├─ 扫描 index_scope 范围（或指定 scope）
+  ├─ 查询 memories WHERE expires_at < now AND deprecated = 0
+  ├─ 对每条记录：
+  │     - 标记 memories.deprecated = 1
+  │     - 标记 chunks.deprecated = 1（通过 parent_id）
+  │     - 从 memories_vec 删除（通过 chunk_id）
+  ├─ 物理删除已标记的记录（可选，取决于 GC 策略）
+  └─ 返回清理报告
+```
+
+### 4.3 retrieve 不触发衰减
+
+retrieve 是只读操作，只做 filter 筛选，不过 LLM，不计算。衰减只在 index（写入时）和 gc（清理时）触发。
+
+---
+
+## 五、chunk 切割算法
+
+### 5.1 语义优先切分
+
+```
+输入：文本 + max_tokens + overlap
+输出：List[Chunk] = {content, token_count, start_offset, end_offset}
+
+流程：
+1. 按段落分割（\n\n）
+2. 逐段落送入 tokenizer 计数
+3. 累计 token，直到 >= max_tokens - overlap
+4. 生成一个 chunk，记录 (content, token_count, byte_start, byte_end)
+5. 剩余内容从下一段落重新开始
+6. 相邻 chunk 头部有 overlap tokens 的重叠（保留跨 chunk 语义连贯）
+```
+
+### 5.2 更新时的 re-chunk
+
+```
+skill.update(id, new_content)
+  │
+  ├─ 读取旧 chunks（deprecated = 0）
+  ├─ 重新 split_file(new_content)
+  ├─ 旧 chunks → deprecated = 1
+  ├─ 新 chunks → 新增记录
+  └─ 重建向量（调用 embedding API）
+```
+
+---
+
+## 六、CLI 命令集
+
+| 命令 | 职责 | 调用方 |
+|------|------|--------|
+| `pm parse < meta.yaml` | 验证 meta.yaml 合法性，输出结构化 JSON | Skill |
+| `pm init [--reset]` | 解析 meta.yaml，创建/重建所有表和向量索引 | Skill |
+| `pm index <path>` | 索引单个文件（触发衰减计算） | Skill |
+| `pm index --bulk <path>` | 批量索引目录下所有匹配文件 | Skill |
+| `pm gc [--scope <path>]` | 衰减召回清理 | Skill / 定时任务 |
+| `pm retrieve --filter <json>` | 检索（只筛选不加工），返回 JSON | Skill |
+| `pm chunk_info <path>` | 返回文件的 chunks 列表（不建索引） | Skill |
+| `pm file_meta <path>` | 返回文件 header 元数据 | Skill |
+| `pm tables` | 列出当前所有表结构 | 用户 |
+| `pm validate` | meta.yaml vs DB schema 一致性检查 | 用户 |
+| `pm version` | 版本信息 | 用户 |
+
+### retrieve 设计
+
+```bash
+pm retrieve --filter '{"category": "demand", "priority": "P1"}'
+pm retrieve --filter '{"category": "issue", "status": "open"}'
+```
+
+filter 只做字段级等值/范围筛选，CLI 翻译为 SQL WHERE 子句。返回：
+
+```json
+[
+  {
+    "chunk_id": "demands/feature-A.md#chunk[1]",
+    "parent_id": "DMD-001",
+    "category": "demand",
+    "priority": "P1",
+    "content": "...",
+    "score": 0.87
+  }
+]
+```
+
+Skill 拿到结果后根据 `parent_id` 组装完整上下文。
+
+---
+
+## 七、Skill 层设计
+
+### 7.1 文件管理
+
+```python
+class MemoryFileManager:
+    def split(self, file_path, meta_yaml) -> List[Chunk]:
+        """语义切分文件，返回 chunks"""
+
+    def classify(self, file_path, meta_yaml) -> Optional[IndexScope]:
+        """判断文件属于哪个 index_scope"""
+
+    def find_chunks(self, parent_id) -> List[Chunk]:
+        """查找某文件的所有 chunks"""
+
+    def partial_update(self, chunk_id, new_content):
+        """局部更新 chunk（标记旧 + 新增新）"""
+
+    def create(self, scope, content, meta_yaml) -> str:
+        """创建文件 + 切割 + 索引"""
+```
+
+### 7.2 操作映射
+
+| 用户意图 | Skill 操作 | CLI 调用 |
+|----------|-----------|----------|
+| 添加一个 P1 需求 | `create("demand", content, priority=P1)` | `pm index <path>` |
+| 查看所有打开的需求 | `retrieve(filter={"category":"demand","status":"open"})` | `pm retrieve --filter ...` |
+| 更新第三章内容 | `partial_update(chunk_id, new_content)` | `pm index <path>` |
+| 清理过期 tmp | `gc()` | `pm gc` |
+| 搜索相关内容 | `semantic_search(query)` | `pm retrieve --filter ...` |
+
+### 7.3 上下文组装
+
+retrieve 返回 chunk 碎片后，Skill 负责：
+
+1. 根据 `parent_id` 找到完整文件所有 chunks
+2. 按 `chunk_index` 排序
+3. 拼接相邻 chunk（带 overlap）还原完整语义
+4. 组装后交给 LLM 处理
+
+---
+
+## 八、与 v1 方案对比
+
+| 项目 | v1（僵化） | v2（范式） |
+|------|-------------|-------------|
+| 记忆类型 | 硬编码 5 种 | 用户通过 index_scope 定义 |
+| category 枚举 | 写死 | meta.yaml 配置 |
+| 衰减机制 | 单一 TTL | 多组 decay_groups 可配置 |
+| 初始化 | 硬编码建表 | `pm init` 读 meta.yaml |
+| CLI 命令 | 11 个 | 8 个 |
+| chunk 管理 | 无 | Skill 层完整管理 |
+| 向量 schema | 硬编码 | meta.yaml 配置 |
+| Skill | 无 | 唯一协调层 |
+
+---
+
+## 九、实施路径
+
+```
+Phase 1: CLI 引擎
+  - meta.yaml 解析器
+  - 表创建/重建（init --reset）
+  - index（文件 + chunk + 向量）
+  - gc（衰减清理）
+  - retrieve（filter 检索）
+
+Phase 2: Skill 协调层
+  - ChunkSplitter（语义切分）
+  - FileManager（文件 CRUD）
+  - ContextAssembler（上下文组装）
+
+Phase 3: 工具链
+  - meta.md 生成器（根据 meta.yaml 自动生成模板）
+  - validate 命令（配置一致性检查）
+  - 向量重建工具（schema 变更后批量重建）
+
+Phase 4: 进阶
+  - 多 embedding 模型支持（Ollama bge-m3 / OpenAI / 本地）
+  - 增量索引（只索引变更文件）
+  - 分布式部署
+```
