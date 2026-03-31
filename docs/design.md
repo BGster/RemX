@@ -1,180 +1,103 @@
-# Project-Manager Skill 设计方案
+# Project-Manager
+
+项目记忆与知识管理工具，支持向量检索、用户隔离、长期维护。
 
 ## 目录结构
 
 ```
 project-manager/
-├── .pm.yaml                       # 配置文件
-├── .gitignore                     # 忽略配置
-├── memory.db                      # sqlite3 + sqlite-vec 向量数据库
-├── share/                         # 项目共享信息（全局共享，全部索引）
-│   ├── projects/                  # 项目信息（索引）
-│   │   └── PRJ-{name}.md
-│   ├── milestones/                # 里程碑记录（索引）
-│   │   └── MS-{序号}.md
-│   ├── releases/                  # 发布记录（索引）
-│   │   └── REL-{版本}.md
-│   └── demands/                   # 官方需求池（索引）— 含变更记录
-└── {user}/                        # 用户私有工作区（用户隔离，索引）
-    ├── principles/               # 开发原则 + 技术决策（索引）
-    ├── daily/                     # 开发日志（索引）— 含变更详情
-    ├── demands/                   # 个人需求/子任务（索引）
-    ├── issues/                  # 问题 + 风险（索引）
-    ├── knowledge/                 # 知识库 + 参考资料（索引）
-    └── tmp/                       # 临时指令（物理删除，不建索引）
+├── .pm.yaml              # 配置文件
+├── .gitignore
+├── memory.db             # SQLite + sqlite-vec 向量数据库
+├── share/                # 项目共享（全局可见）
+│   ├── projects/         # 项目信息
+│   ├── milestones/       # 里程碑
+│   ├── releases/         # 发布记录
+│   └── demands/          # 官方需求池
+└── {user}/               # 用户私有工作区
+    ├── principles/       # 开发原则 + 技术决策
+    ├── daily/            # 开发日志（包含变更详情）
+    ├── demands/          # 个人需求 / 子任务
+    ├── issues/           # 问题 + 风险
+    ├── knowledge/        # 知识库 + 参考资料
+    └── tmp/              # 临时指令（24h 物理删除，不建索引）
 ```
-
----
 
 ## 记忆类别
 
-### 官方需求池（share/）
+### share/（项目共享）
 
-| 类别 | 目录 | 用途 | 索引 | 清理策略 | ID前缀 |
-|------|------|------|------|----------|--------|
-| 项目信息 | share/projects/ | 项目背景、架构 | 是 | 永久 | PRJ- |
-| 里程碑 | share/milestones/ | 关键节点 | 是 | 永久 | MS- |
-| 发布记录 | share/releases/ | 版本历史 | 是 | 永久 | REL- |
-| 官方需求 | share/demands/ | 需求池，所有成员共享 | 是 | 永久 | DMD- |
+| 目录 | 用途 | ID前缀 |
+|------|------|--------|
+| projects/ | 项目背景、架构 | PRJ- |
+| milestones/ | 里程碑节点 | MS- |
+| releases/ | 版本历史 | REL- |
+| demands/ | 官方需求池，所有成员可见 | DMD- |
 
-### 用户私有工作区（{user}/）
+### {user}/（用户私有）
 
-| 类别 | 目录 | 用途 | 索引 | 清理策略 | ID前缀 |
-|------|------|------|------|----------|--------|
-| 开发原则 | {user}/principles/ | 规则 + ADR 决策 | 是 | 永久 | - |
-| 开发日志 | {user}/daily/ | 每日工作记录（包含变更详情） | 是 | 永久 | - |
-| 个人需求 | {user}/demands/ | 个人任务分解、子任务 | 是 | 永久 | DMD- |
-| 问题/风险 | {user}/issues/ | Bug、问题、风险识别与应对 | 是 | 关闭后归档 | CSK- |
-| 知识库 | {user}/knowledge/ | 业务/技术知识、参考资料 | 是 | 永久 | - |
-| 临时指令 | {user}/tmp/ | 短期约束 | 否 | **物理删除（不建索引）** | - |
+| 目录 | 用途 | ID前缀 |
+|------|------|--------|
+| principles/ | 开发原则 + ADR 技术决策 | - |
+| daily/ | 每日工作记录，含变更详情 | - |
+| demands/ | 个人任务分解、子任务 | DMD- |
+| issues/ | Bug、问题、风险 | ISC- |
+| knowledge/ | 业务/技术知识、参考资料 | - |
+| tmp/ | 临时指令（不建索引） | - |
 
----
+## 核心能力（5 项）
 
-## 精简说明
+| 能力 | 目录 | 用途 |
+|------|------|------|
+| 需求 | share/demands/ + {user}/demands/ | 需求池 + 个人任务 |
+| 问题 | {user}/issues/ | Bug、问题、风险追踪 |
+| 原则 | {user}/principles/ | 规则 + ADR 决策 |
+| 日志 | {user}/daily/ | 每日工作记录 |
+| 知识 | {user}/knowledge/ | 知识库 |
 
-### 合并策略
-
-| 合并项 | 合并结果 | 说明 |
-|--------|----------|------|
-| laws + decisions | `principles/` | 规则与 ADR 统一为「原则」 |
-| changes + demands | `demands/` | 变更详情记录在 daily 中，demands 保留变更属性 |
-| problems + risks | `issues/` | 「关注点」覆盖问题和风险，ID前缀 CSK- |
-| references + knowledge | `knowledge/` | 参考资料并入知识库 |
-| meetings | **删除** | 会议记录可写入 daily 或 knowledge |
-| ~~meetings~~ | — | — |
-
-### demands 中的变更处理
-
-demands 记录通过 `extension` 字段携带变更属性：
-
-```json
-{
-  "type": "change",
-  "change_reason": "合规要求",
-  "change_impact": "需增加水印",
-  "approver": "PM-xxx"
-}
-```
-
-变更的详细过程记录在 `daily/` 中，而非单独文件。
-
----
-
-## 双线隔离说明
-
-### share/ vs {user}/ 的关系
+## 双线隔离
 
 ```
 share/demands/  ←→  {user}/demands/
-   （官方需求池）      （个人任务区）
-        ↑                    ↑
-        └── 不打通，隔离管理 ──┘
+   官方需求池         个人任务区
+        ↑                   ↑
+     不打通，PM 手动同步      仅自己可见
 ```
 
-- **share/demands/**：PM 或管理员创建，**所有人可见可认领**，是项目的官方需求来源
-- **{user}/demands/**：开发者个人维护，可以是官方需求的子任务分解、个人笔记、想法，**仅自己可见**
-
-两者**不自动同步**，如果需要将个人成果贡献回官方需求池，由 PM 手动录入 `share/demands/`。
-
-### demands、releases 定位区分
-
-| 维度 | demands（需求） | releases（发布） |
-|------|----------------|-----------------|
-| 关注点 | 需求内容本身 | 发布结果记录 |
-| 时间节点 | 需求提出/变更时 | 版本发布时 |
-| 核心字段 | 描述、验收标准、技术方案、变更属性 | 版本号、发布日期、变更内容 |
-
----
-
-## 技术方案
-
-### 向量检索
-
-- **数据库**: SQLite3
-- **向量扩展**: sqlite-vec
-- **嵌入模型**: Ollama bge-m3（本地）/ OpenAI API（远程）
-
-### 为什么要向量检索
-
-当前目标是**长期项目维护**，随着项目规模增长：
-- 文档数量从几十增长到数百
-- 跨项目复用知识的需求出现
-- 需要语义搜索而非精确文件名搜索
-
-向量检索可以支持「根据描述找相关需求/问题/决策」的场景，而不只是 `grep` 式的关键词匹配。
-
-### 记忆管理
-
-所有记忆类型统一存储在同一张表中，采用通用表结构设计。
+## 数据库设计
 
 ```sql
 CREATE TABLE memories (
-    id            TEXT PRIMARY KEY,          -- 记忆ID，如 CSK-001
-    category      TEXT NOT NULL,             -- 记忆类别
-    user_id       TEXT,                      -- 用户ID（share目录下为NULL）
-    file_path     TEXT NOT NULL,             -- 文件路径（相对于project-manager/）
-    content       TEXT NOT NULL,             -- 内容
-    priority      TEXT,                      -- 优先级：P0/P1/P2/P3
-    status        TEXT,                      -- 状态：open/in-progress/closed/archived
-    extension     TEXT,                      -- 扩展属性（JSON格式，map<string, string>）
-    embedding     BLOB,                      -- 向量嵌入（sqlite-vec）
-    created_at    TEXT NOT NULL,             -- 创建时间
-    updated_at    TEXT NOT NULL,             -- 更新时间
-    expires_at    TEXT                       -- 过期时间（仅tmp类别使用，tmp物理删除）
+    id         TEXT PRIMARY KEY,    -- 记忆ID，如 ISC-001
+    category   TEXT NOT NULL,       -- 记忆类别
+    user_id    TEXT,                -- 用户ID（share 目录下为 NULL）
+    file_path  TEXT NOT NULL,       -- 文件路径
+    content    TEXT NOT NULL,       -- 内容
+    priority   TEXT,                 -- P0/P1/P2/P3
+    status     TEXT,                -- open/in-progress/closed/archived
+    extension  TEXT,                -- JSON 扩展属性
+    embedding  BLOB,                 -- 向量嵌入
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    expires_at TEXT                  -- 仅 tmp 使用
 );
 
--- 索引
 CREATE INDEX idx_memories_category ON memories(category);
 CREATE INDEX idx_memories_user_id ON memories(user_id);
 CREATE INDEX idx_memories_priority ON memories(priority);
 CREATE INDEX idx_memories_status ON memories(status);
-CREATE INDEX idx_memories_created_at ON memories(created_at);
 ```
 
-**extension (扩展属性) 使用示例**：
+## 技术选型
 
-```json
-{
-  "tags": "数据库,性能",
-  "impact": "高",
-  "owner": "zhangsan01",
-  "related_demand": "DMD-001"
-}
-```
-
-**priority 和 status 单独建字段**，支持直接 SQL 过滤和排序；extension 用于存储其他灵活属性。
-
-### tmp/ 特殊处理
-
-- **不建索引**：tmp/ 下的文件不写入 memory.db
-- **物理删除**：超过 24h 后直接删除文件，不保留记录
-- 适用场景：临时指令、短期约束、一次性备注
-
----
+- **数据库**：SQLite3 + sqlite-vec
+- **向量模型**：Ollama bge-m3（本地）/ OpenAI API（远程）
+- **CLI**：Python + Typer + Rich
+- **tmp/ 处理**：物理删除，不写入 memory.db
 
 ## 实施步骤
 
-### Step 1: pyproject.toml 依赖配置
+### Step 1: pyproject.toml
 
 ```toml
 dependencies = [
@@ -190,46 +113,27 @@ dependencies = [
 ### Step 2: init.py 目录结构
 
 ```python
-# 创建 share 子文件夹
+# share/
 (share_dir / "projects").mkdir(parents=True, exist_ok=True)
 (share_dir / "milestones").mkdir(parents=True, exist_ok=True)
 (share_dir / "releases").mkdir(parents=True, exist_ok=True)
 (share_dir / "demands").mkdir(parents=True, exist_ok=True)
 
-# 创建用户目录
+# {user}/
 user_dirs = ["principles", "daily", "demands", "issues", "knowledge", "tmp"]
 ```
 
-### Step 3: 文档更新
-
-| 文件 | 更新内容 |
-|------|----------|
-| `cli/pm/README.md` | 目录结构图、命令说明 |
-| `cli/pm/USER_GUIDE.md` | 命令参考 |
-| `skills/project-manager/SKILL.md` | 目录结构、索引说明、触发示例 |
-| `skills/project-manager/references/document-templates.md` | 模板，添加 ID 前缀 |
-| `skills/project-manager/references/cli-reference.md` | 命令参考 |
-
----
-
-## 验证方法
+## 验证
 
 ```bash
-# 1. 安装测试
+# 安装测试
 cd cli/pm && uv pip install -e . && pm --version
 
-# 2. 初始化测试
+# 初始化
 pm init --user test01
-# 验证目录结构：
-# - share/projects/, share/demands/ 文件夹存在
-# - test01/principles/, test01/daily/, test01/issues/, test01/knowledge/ 等用户目录存在
 
-# 3. 功能测试
+# 功能测试
 pm log --content "测试日志"
 pm demand --content "测试需求"
-pm concern --content "问题描述" --priority P1
-
-# 4. 边界测试
-pm init --user test01 --force  # 覆盖测试
-pm tmp --content "临时指令"  # 验证 24h 后物理删除
+pm issue --content "问题描述" --priority P1
 ```
