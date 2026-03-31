@@ -13,13 +13,13 @@ project-manager/
 │   ├── projects/         # 项目信息
 │   ├── milestones/       # 里程碑
 │   ├── releases/         # 发布记录
-│   └── demands/          # 官方需求池
+│   ├── meetings/         # 会议记录
+│   ├── issues/           # 问题 + 风险
+│   └── knowledge/        # 知识库 + 参考资料
 └── {user}/               # 用户私有工作区
     ├── principles/       # 开发原则 + 技术决策
-    ├── daily/            # 开发日志（包含变更详情）
+    ├── daily/            # 开发日志
     ├── demands/          # 个人需求 / 子任务
-    ├── issues/           # 问题 + 风险
-    ├── knowledge/        # 知识库 + 参考资料
     └── tmp/              # 临时指令（24h 物理删除，不建索引）
 ```
 
@@ -32,43 +32,34 @@ project-manager/
 | projects/ | 项目背景、架构 | PRJ- |
 | milestones/ | 里程碑节点 | MS- |
 | releases/ | 版本历史 | REL- |
-| demands/ | 官方需求池，所有成员可见 | DMD- |
+| meetings/ | 会议记录 | - |
+| issues/ | 问题 + 风险 | ISC- |
+| knowledge/ | 知识库 + 参考资料 | - |
 
 ### {user}/（用户私有）
 
 | 目录 | 用途 | ID前缀 |
 |------|------|--------|
 | principles/ | 开发原则 + ADR 技术决策 | - |
-| daily/ | 每日工作记录，含变更详情 | - |
+| daily/ | 每日工作记录 | - |
 | demands/ | 个人任务分解、子任务 | DMD- |
-| issues/ | Bug、问题、风险 | ISC- |
-| knowledge/ | 业务/技术知识、参考资料 | - |
 | tmp/ | 临时指令（不建索引） | - |
 
 ## 核心能力（5 项）
 
 | 能力 | 目录 | 用途 |
-|------|------|------|
-| 需求 | share/demands/ + {user}/demands/ | 需求池 + 个人任务 |
-| 问题 | {user}/issues/ | Bug、问题、风险追踪 |
+|------|------|--------|
+| 需求 | {user}/demands/ | 个人任务 |
+| 问题 | share/issues/ | Bug、问题、风险追踪 |
 | 原则 | {user}/principles/ | 规则 + ADR 决策 |
 | 日志 | {user}/daily/ | 每日工作记录 |
-| 知识 | {user}/knowledge/ | 知识库 |
-
-## 双线隔离
-
-```
-share/demands/  ←→  {user}/demands/
-   官方需求池         个人任务区
-        ↑                   ↑
-     不打通，PM 手动同步      仅自己可见
-```
+| 知识 | share/knowledge/ | 知识库 + 会议记录 |
 
 ## 数据库设计
 
 ```sql
 CREATE TABLE memories (
-    id         TEXT PRIMARY KEY,    -- 记忆ID，如 ISC-001
+    id         TEXT PRIMARY KEY,    -- 记忆ID，如 ISC-001, DMD-001
     category   TEXT NOT NULL,       -- 记忆类别
     user_id    TEXT,                -- 用户ID（share 目录下为 NULL）
     file_path  TEXT NOT NULL,       -- 文件路径
@@ -117,10 +108,12 @@ dependencies = [
 (share_dir / "projects").mkdir(parents=True, exist_ok=True)
 (share_dir / "milestones").mkdir(parents=True, exist_ok=True)
 (share_dir / "releases").mkdir(parents=True, exist_ok=True)
-(share_dir / "demands").mkdir(parents=True, exist_ok=True)
+(share_dir / "meetings").mkdir(parents=True, exist_ok=True)
+(share_dir / "issues").mkdir(parents=True, exist_ok=True)
+(share_dir / "knowledge").mkdir(parents=True, exist_ok=True)
 
 # {user}/
-user_dirs = ["principles", "daily", "demands", "issues", "knowledge", "tmp"]
+user_dirs = ["principles", "daily", "demands", "tmp"]
 ```
 
 ## 验证
