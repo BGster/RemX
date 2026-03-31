@@ -13,4 +13,4 @@ dependencies = [
 ]
 
 [project.scripts]
-pm = "pm.cli:app"
+pm = "pm:app"

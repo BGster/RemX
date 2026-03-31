@@ -2,7 +2,7 @@
 import typer
 from rich.console import Console
 
-app = typer.Typer(prog_name="pm")
+app = typer.Typer(name="pm")
 console = Console()
 
 
