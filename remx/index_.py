@@ -1,4 +1,4 @@
-"""pm index command — index a single file into memories + chunks + memories_vec."""
+"""remx index command — index a single file into memories + chunks + memories_vec."""
 import json
 import sys
 from datetime import datetime, timedelta, timezone
@@ -47,22 +47,22 @@ def run_index(
     try:
         resolved_path = _normalize_path(str(file_path))
     except ValueError as e:
-        print(f"pm index: {file_path}: {e}", file=sys.stderr)
+        print(f"remx index: {file_path}: {e}", file=sys.stderr)
         return 1
 
     if not Path(resolved_path).exists():
-        print(f"pm index: {file_path}: file not found", file=sys.stderr)
+        print(f"remx index: {file_path}: file not found", file=sys.stderr)
         return 1
 
     if not meta_yaml_path.exists():
-        print(f"pm index: {meta_yaml_path}: meta.yaml not found", file=sys.stderr)
+        print(f"remx index: {meta_yaml_path}: meta.yaml not found", file=sys.stderr)
         return 1
 
     # ── 1. Load meta.yaml ──────────────────────────────────────────────────────
     try:
         meta = MetaYaml.load(meta_yaml_path)
     except Exception as e:
-        print(f"pm index: {meta_yaml_path}: parse error — {e}", file=sys.stderr)
+        print(f"remx index: {meta_yaml_path}: parse error — {e}", file=sys.stderr)
         return 1
 
     # ── 2. Find index_scope ────────────────────────────────────────────────────
@@ -101,7 +101,7 @@ def run_index(
     # Validate dimension values
     for dim_name, dim_val in [("category", category), ("priority", priority), ("status", status)]:
         if dim_val and not meta.validate_value(dim_name, str(dim_val)):
-            print(f"pm index: {file_path}: warning: {dim_name}='{dim_val}' not in meta.yaml config; allowing anyway",
+            print("remx index: {file_path}: warning: {dim_name}='{dim_val}' not in meta.yaml config; allowing anyway",
                   file=sys.stderr)
 
     # ── 4. Chunk content ───────────────────────────────────────────────────────
@@ -132,7 +132,7 @@ def run_index(
         chunks = chunk_paragraphs_simple(paragraphs, index_path, chunk_size_paras=cs, overlap_paras=ov)
 
     if not chunks:
-        print(f"pm index: {file_path}: no content to index", file=sys.stderr)
+        print(f"remx index: {file_path}: no content to index", file=sys.stderr)
         return 1
 
     # ── 5. Compute expires_at ───────────────────────────────────────────────────
@@ -182,10 +182,10 @@ def run_index(
             vector_dimensions=meta.vector.dimensions,
         )
     except Exception as e:
-        print(f"pm index: {file_path}: write error — {e}", file=sys.stderr)
+        print(f"remx index: {file_path}: write error — {e}", file=sys.stderr)
         return 1
 
-    print(f"pm index: indexed {file_path}")
+    print(f"remx index: indexed {file_path}")
     print(f"  memory_id: {memory_id}")
     print(f"  category: {category}")
     print(f"  chunks: {len(chunks)}")

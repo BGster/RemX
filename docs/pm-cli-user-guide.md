@@ -16,12 +16,12 @@ Project-Manager v2 — 命令行工具参考手册。
 
 ---
 
-## pm init
+## remx init
 
 初始化或重建数据库。
 
 ```bash
-pm init --reset --db <path> --meta <meta.yaml>
+remx init --reset --db <path> --meta <meta.yaml>
 ```
 
 | 参数 | 说明 |
@@ -32,17 +32,17 @@ pm init --reset --db <path> --meta <meta.yaml>
 
 **示例：**
 ```bash
-pm init --reset --db ./pm.db --meta ./meta.yaml
+remx init --reset --db ./pm.db --meta ./meta.yaml
 ```
 
 ---
 
-## pm index
+## remx index
 
 索引单个文件到数据库。
 
 ```bash
-pm index <file> --db <path> --meta <meta.yaml> [options]
+remx index <file> --db <path> --meta <meta.yaml> [options]
 ```
 
 | 参数 | 说明 |
@@ -58,18 +58,18 @@ pm index <file> --db <path> --meta <meta.yaml> [options]
 **示例：**
 ```bash
 # 索引项目文件
-pm index demands/feature-A.md --db ./pm.db --meta ./meta.yaml
+remx index demands/feature-A.md --db ./pm.db --meta ./meta.yaml
 
 # 索引全局记忆（~ 或 / 开头）
-pm index ~/notes/idea.md --db ./pm.db --meta ./meta.yaml
+remx index ~/notes/idea.md --db ./pm.db --meta ./meta.yaml
 
 # 无向量服务时
-pm index demands/feature-A.md --db ./pm.db --meta ./meta.yaml --no-embed
+remx index demands/feature-A.md --db ./pm.db --meta ./meta.yaml --no-embed
 ```
 
 **输出说明：**
 ```
-pm index: indexed demands/feature-A.md
+remx index: indexed demands/feature-A.md
   memory_id: DEM-2CA42DFCEA5079B7
   category: demand
   chunks: 4           ← 该文件被切成 4 个 chunk
@@ -84,28 +84,28 @@ pm index: indexed demands/feature-A.md
 
 ---
 
-## pm parse
+## remx parse
 
 验证并输出 meta.yaml 结构。
 
 ```bash
-pm parse <meta.yaml>
+remx parse <meta.yaml>
 ```
 
 **示例：**
 ```bash
-pm parse meta.yaml
+remx parse meta.yaml
 # 输出格式化 JSON，若有错误则返回非零退出码
 ```
 
 ---
 
-## pm retrieve
+## remx retrieve
 
 按过滤器检索记忆。
 
 ```bash
-pm retrieve --db <path> --filter '<json>' [options]
+remx retrieve --db <path> --filter '<json>' [options]
 ```
 
 | 参数 | 说明 |
@@ -129,25 +129,25 @@ pm retrieve --db <path> --filter '<json>' [options]
 **示例：**
 ```bash
 # 查所有 demand
-pm retrieve --db ./pm.db --filter '{"category": "demand"}'
+remx retrieve --db ./pm.db --filter '{"category": "demand"}'
 
 # 查 P0 且 open 的 issue
-pm retrieve --db ./pm.db --filter '{"category": "issue", "priority": "P0", "status": "open"}'
+remx retrieve --db ./pm.db --filter '{"category": "issue", "priority": "P0", "status": "open"}'
 
 # 查已过期的记忆
-pm retrieve --db ./pm.db --filter '{"expires_at": {"<": "2026-04-01T00:00:00Z"}}'
+remx retrieve --db ./pm.db --filter '{"expires_at": {"<": "2026-04-01T00:00:00Z"}}'
 ```
 
 **返回格式：** JSON 数组，每条记录含 memory 字段 + 对应 chunk 内容。
 
 ---
 
-## pm gc
+## remx gc
 
 GC 清理 — 软删除过期记忆或物理删除已标记的记录。
 
 ```bash
-pm gc --db <path> [--dry-run] [--purge] [--scope <path>]
+remx gc --db <path> [--dry-run] [--purge] [--scope <path>]
 ```
 
 | 参数 | 说明 |
@@ -160,16 +160,16 @@ pm gc --db <path> [--dry-run] [--purge] [--scope <path>]
 **示例：**
 ```bash
 # 预览要清理的记录
-pm gc --db ./pm.db --dry-run
+remx gc --db ./pm.db --dry-run
 
 # 执行软删除（标记 deprecated=1）
-pm gc --db ./pm.db
+remx gc --db ./pm.db
 
 # 物理删除所有已标记的记录
-pm gc --db ./pm.db --purge
+remx gc --db ./pm.db --purge
 
 # 只清理某路径
-pm gc --db ./pm.db --scope demands/
+remx gc --db ./pm.db --scope demands/
 ```
 
 **Skill 提醒阈值（超过任一则提示用户）：**
@@ -179,10 +179,10 @@ pm gc --db ./pm.db --scope demands/
 
 ---
 
-## pm version
+## remx version
 
 ```bash
-pm version
+remx version
 ```
 输出版本号。
 

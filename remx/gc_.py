@@ -1,4 +1,4 @@
-"""pm gc command — decay recall cleanup (soft-delete + optional purge)."""
+"""remx gc command — decay recall cleanup (soft-delete + optional purge)."""
 import json
 import sys
 from pathlib import Path
@@ -25,14 +25,14 @@ def run_gc(
         0 on success, 1 on error
     """
     if not db_path.exists():
-        print(f"pm gc: {db_path}: database not found", file=sys.stderr)
+        print(f"remx gc: {db_path}: database not found", file=sys.stderr)
         return 1
 
     # ── Collect ────────────────────────────────────────────────────────────────
     try:
         report = gc_collect(db_path, scope_path=scope_path)
     except Exception as e:
-        print(f"pm gc: collect error — {e}", file=sys.stderr)
+        print(f"remx gc: collect error — {e}", file=sys.stderr)
         return 1
 
     expired = report["expired_memories"]
@@ -40,7 +40,7 @@ def run_gc(
 
     # ── Dry run: just report ───────────────────────────────────────────────────
     if dry_run:
-        print("pm gc --dry-run")
+        print("remx gc --dry-run")
         print(f"  expired (not yet deprecated): {len(expired)}")
         for m in expired:
             print(f"    {m['id']}  {m['file_path']}  expires_at={m['expires_at']}")
@@ -53,24 +53,24 @@ def run_gc(
         try:
             counts = gc_soft_delete(db_path, scope_path=scope_path)
         except Exception as e:
-            print(f"pm gc: soft-delete error — {e}", file=sys.stderr)
+            print(f"remx gc: soft-delete error — {e}", file=sys.stderr)
             return 1
-        print(f"pm gc: soft-deleted {counts['expired_memories']} expired memories, "
+        print(f"remx gc: soft-deleted {counts['expired_memories']} expired memories, "
               f"{counts['chunks']} chunks")
     else:
-        print("pm gc: no expired records found")
+        print("remx gc: no expired records found")
 
     # ── Purge deprecated ────────────────────────────────────────────────────────
     if purge:
         try:
             purge_counts = gc_purge(db_path)
         except Exception as e:
-            print(f"pm gc --purge: error — {e}", file=sys.stderr)
+            print(f"remx gc --purge: error — {e}", file=sys.stderr)
             return 1
-        print(f"pm gc: purged {purge_counts['memories']} memories, "
+        print(f"remx gc: purged {purge_counts['memories']} memories, "
               f"{purge_counts['chunks']} chunks (+ VACUUM)")
     elif deprecated:
-        print(f"pm gc: {len(deprecated)} deprecated records remain "
-              f"(run `pm gc --purge` to physically delete)")
+        print(f"remx gc: {len(deprecated)} deprecated records remain "
+              f"(run `remx gc --purge` to physically delete)")
 
     return 0

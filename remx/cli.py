@@ -1,11 +1,11 @@
 """Project-Manager v2 CLI — Engine Layer (Phase 1).
 
 Implements 5 commands:
-  pm parse < meta.yaml
-  pm init [--reset] [--db <path>] [--meta <path>]
-  pm index <path> [--db <path>] [--meta <path>]
-  pm gc [--scope <path>] [--dry-run] [--purge] [--db <path>]
-  pm retrieve --filter <json> [--db <path>] [--no-content] [--limit <n>]
+  remx parse < meta.yaml
+  remx init [--reset] [--db <path>] [--meta <path>]
+  remx index <path> [--db <path>] [--meta <path>]
+  remx gc [--scope <path>] [--dry-run] [--purge] [--db <path>]
+  remx retrieve --filter <json> [--db <path>] [--no-content] [--limit <n>]
 
 Usage as library:
   from pm.parse import run_parse
@@ -29,7 +29,7 @@ from .init_ import run_init as init_run
 from .parse import run_parse as parse_run
 from .retrieve_ import run_retrieve as retrieve_run
 
-app = typer.Typer(name="pm", no_args_is_help=True, invoke_without_command=False)
+app = typer.Typer(name="remx", no_args_is_help=True, invoke_without_command=False)
 console = typer.echo
 
 
@@ -63,7 +63,7 @@ def parse_cmd(
                 tmp_path.unlink(missing_ok=True)
             raise typer.Exit(code=rc)
         except Exception as e:
-            print(f"pm parse: stdin error — {e}", file=sys.stderr)
+            print(f"remx parse: stdin error — {e}", file=sys.stderr)
             raise typer.Exit(code=1)
     else:
         rc = parse_run(meta)
@@ -96,7 +96,7 @@ def index_cmd(
     try:
         meta_cfg = MetaYaml.load(meta)
     except Exception as e:
-        print(f"pm index: {meta}: parse error — {e}", file=sys.stderr)
+        print(f"remx index: {meta}: parse error — {e}", file=sys.stderr)
         raise typer.Exit(code=1)
 
     embedder = None
@@ -149,7 +149,7 @@ def retrieve_cmd(
     try:
         filter_dict = json.loads(filter)
     except json.JSONDecodeError as e:
-        print(f"pm retrieve: invalid --filter JSON — {e}", file=sys.stderr)
+        print(f"remx retrieve: invalid --filter JSON — {e}", file=sys.stderr)
         raise typer.Exit(code=1)
 
     rc = retrieve_run(db, filter_dict, include_content=not no_content, limit=limit)
@@ -159,4 +159,4 @@ def retrieve_cmd(
 @app.command("version")
 def version_cmd():
     """Print version."""
-    print(f"pm v{__version__}")
+    print(f"remx v{__version__}")

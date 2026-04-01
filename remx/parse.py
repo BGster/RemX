@@ -1,4 +1,4 @@
-"""pm parse command — validate meta.yaml and output structured JSON."""
+"""remx parse command — validate meta.yaml and output structured JSON."""
 import json
 import sys
 from pathlib import Path
@@ -13,20 +13,20 @@ def run_parse(meta_yaml_path: Path) -> int:
     - On validation error: print error to stderr, return 1
     """
     if not meta_yaml_path.exists():
-        print(f"pm parse: {meta_yaml_path}: file not found", file=sys.stderr)
+        print(f"remx parse: {meta_yaml_path}: file not found", file=sys.stderr)
         return 1
 
     try:
         meta = MetaYaml.load(meta_yaml_path)
     except Exception as e:
-        print(f"pm parse: {meta_yaml_path}: parse error — {e}", file=sys.stderr)
+        print(f"remx parse: {meta_yaml_path}: parse error — {e}", file=sys.stderr)
         return 1
 
     # Additional structural checks
     try:
         _validate_meta(meta)
     except ValueError as ve:
-        print(f"pm parse: {meta_yaml_path}: validation error — {ve}", file=sys.stderr)
+        print(f"remx parse: {meta_yaml_path}: validation error — {ve}", file=sys.stderr)
         return 1
 
     print(meta.to_json())

@@ -156,7 +156,7 @@ tmp/
 修改文件后重新索引：
 
 ```bash
-pm index <file> --db ./pm.db --meta ./meta.yaml --no-embed
+remx index <file> --db ./pm.db --meta ./meta.yaml --no-embed
 ```
 
 系统会自动删除旧记录（通过 memory_id 去重），不会产生重复。

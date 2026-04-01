@@ -1,4 +1,4 @@
-"""pm retrieve command — filter-based retrieval, returns JSON array."""
+"""remx retrieve command — filter-based retrieval, returns JSON array."""
 import json
 import sys
 from datetime import datetime
@@ -26,7 +26,7 @@ def run_retrieve(
         0 on success, 1 on error
     """
     if not db_path.exists():
-        print(f"pm retrieve: {db_path}: database not found", file=sys.stderr)
+        print(f"remx retrieve: {db_path}: database not found", file=sys.stderr)
         return 1
 
     # Parse JSON filter if passed as string
@@ -34,17 +34,17 @@ def run_retrieve(
         try:
             filter = json.loads(filter)
         except json.JSONDecodeError as e:
-            print(f"pm retrieve: invalid filter JSON — {e}", file=sys.stderr)
+            print(f"remx retrieve: invalid filter JSON — {e}", file=sys.stderr)
             return 1
 
     if not isinstance(filter, dict):
-        print(f"pm retrieve: filter must be a JSON object", file=sys.stderr)
+        print(f"remx retrieve: filter must be a JSON object", file=sys.stderr)
         return 1
 
     try:
         rows = retrieve(db_path, filter, include_content=include_content, limit=limit)
     except Exception as e:
-        print(f"pm retrieve: query error — {e}", file=sys.stderr)
+        print(f"remx retrieve: query error — {e}", file=sys.stderr)
         return 1
 
     # Serialize datetime/None values for JSON
