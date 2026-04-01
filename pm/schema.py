@@ -80,6 +80,9 @@ class VectorConfig(BaseModel):
 class ChunkConfig(BaseModel):
     max_tokens: int = Field(default=512, ge=1)
     overlap: int = Field(default=0, ge=0)  # paragraph count
+    strategy: str = Field(default="heading")  # "heading" | "paragraph"
+    heading_levels: list[int] = Field(default_factory=lambda: [1, 2, 3])
+    preserve: list[str] = Field(default_factory=lambda: ["code_blocks", "tables"])
 
 
 # ─── Root meta.yaml Model ────────────────────────────────────────────────────
