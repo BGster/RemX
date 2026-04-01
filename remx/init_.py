@@ -1,4 +1,4 @@
-"""pm init command — create / rebuild all tables and vector index."""
+"""remx init command — create / rebuild all tables and vector index."""
 import sys
 from pathlib import Path
 
@@ -22,13 +22,13 @@ def run_init(
         0 on success, 1 on error
     """
     if not meta_yaml_path.exists():
-        print(f"pm init: {meta_yaml_path}: file not found", file=sys.stderr)
+        print(f"remx init: {meta_yaml_path}: file not found", file=sys.stderr)
         return 1
 
     try:
         meta = MetaYaml.load(meta_yaml_path)
     except Exception as e:
-        print(f"pm init: {meta_yaml_path}: parse error — {e}", file=sys.stderr)
+        print(f"remx init: {meta_yaml_path}: parse error — {e}", file=sys.stderr)
         return 1
 
     dimensions = meta.vector.dimensions
@@ -36,7 +36,7 @@ def run_init(
     try:
         init_db(db_path, vector_dimensions=dimensions, reset=reset)
     except Exception as e:
-        print(f"pm init: {db_path}: failed to initialize database — {e}", file=sys.stderr)
+        print(f"remx init: {db_path}: failed to initialize database — {e}", file=sys.stderr)
         return 1
 
     action = "Rebuilt" if reset else "Created"
