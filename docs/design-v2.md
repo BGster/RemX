@@ -1,4 +1,4 @@
-# Project-Manager v2 设计方案
+# Remx v2 设计方案
 
 ## 核心理念
 

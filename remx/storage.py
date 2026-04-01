@@ -1,4 +1,4 @@
-"""File storage with YAML front-matter for Project-Manager."""
+"""File storage with YAML front-matter for Remx."""
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional

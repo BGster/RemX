@@ -1,4 +1,4 @@
-# Project-Manager 技术规格文档
+# Remx 技术规格文档
 
 > 基于 `docs/design.md` v0.1.0 分析输出
 > 分析师：Analyzer | 日期：2026-03-31

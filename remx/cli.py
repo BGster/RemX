@@ -1,4 +1,4 @@
-"""Project-Manager v2 CLI — Engine Layer (Phase 1).
+"""Remx v2 CLI — Engine Layer (Phase 1).
 
 Implements 5 commands:
   remx parse < meta.yaml

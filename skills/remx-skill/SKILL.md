@@ -1,4 +1,4 @@
-# Project-Manager Skill
+# Remx Skill
 
 项目记忆与知识管理工具。
 
@@ -15,7 +15,7 @@
 ## 目录结构
 
 ```
-project-manager/
+remx/
 ├── .pm.yaml              # 配置文件
 ├── memory.db             # SQLite + sqlite-vec 向量数据库
 ├── share/                # 项目共享（全局可见）

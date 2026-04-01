@@ -1,1 +1,1 @@
-"""Project-Manager CLI commands."""
+"""Remx CLI commands."""
