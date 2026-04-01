@@ -44,56 +44,19 @@ uv pip install -e .
 
 ## Linux（通用）
 
-### 判断你的包管理器
+`uv` 自带 Python 管理器，**不需要预先安装系统 Python**。它会自动下载并使用所需版本。
 
-| 包管理器 | 发行版 |
-|----------|--------|
-| apt / dpkg | Debian, Ubuntu, Linux Mint, WSL (Debian/Ubuntu) |
-| dnf / yum | Fedora, RHEL, CentOS, AlmaLinux |
-| pacman | Arch Linux, Manjaro |
-| zypper | openSUSE |
-| apk | Alpine Linux |
-| Nix / NixOS | NixOS |
+### 1. 安装 uv
 
-### 1. 安装 Python
-
-**Debian / Ubuntu (apt)**
-```bash
-sudo apt update
-sudo apt install python3.11-venv python3-pip
-```
-
-**Fedora / RHEL / CentOS (dnf)**
-```bash
-sudo dnf install python3.11 python3.11-devel
-```
-
-**Arch Linux / Manjaro (pacman)**
-```bash
-sudo pacman -S python311 python311-pip
-```
-
-**openSUSE (zypper)**
-```bash
-sudo zypper install python311 python311-devel
-```
-
-**Alpine (apk)**
-```bash
-apk add python3 py3-pip python3-dev musl-dev gcc
-```
-
-### 2. 安装 uv
+`uv` 自带 Python 管理器，会自动下载所需 Python 版本，无需单独装系统 Python。
 
 ```bash
-# 方式一：官方脚本（推荐，所有发行版通用）
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 方式二：通过 pip
-pip install uv
 ```
 
-### 3. 创建虚拟环境并安装
+> 如果官方脚本网络失败，可通过包管理器：`sudo apt install uv`（Debian/Ubuntu）或 `sudo dnf install uv`（Fedora）等。
+
+### 2. 创建虚拟环境并安装
 
 ```bash
 cd RemX/remx
@@ -101,6 +64,8 @@ uv venv
 source .venv/bin/activate
 uv pip install -e .
 ```
+
+> `uv` 会自动处理 sqlite-vec 的 C 扩展编译（Linux 上使用自带 Python 的开发文件）。
 
 ---
 
