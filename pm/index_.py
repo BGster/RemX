@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
-from .chunker import chunk_paragraphs_simple, count_tokens
+from .chunker import chunk_paragraphs_simple, chunk_by_headings, count_tokens
 from .db import expires_at_stale, expires_at_ttl, now_iso, write_memory
 from .embedding import get_embedding
 from .schema import MetaYaml
@@ -83,15 +83,29 @@ def run_index(
     # ── 4. Chunk content ───────────────────────────────────────────────────────
     paragraphs = [p.strip() for p in body.split("\n\n") if p.strip()]
 
-    # Use meta.yaml overlap (by paragraph count), fall back to token-based
+    # Use meta.yaml overlap (by paragraph count)
     ov = overlap_paras if overlap_paras >= 0 else meta.chunk.overlap
-    cs = chunk_size_paras
-    if cs <= 0:
-        # Token-based chunking: use max_tokens / avg_tokens_per_para heuristic
-        avg_para_tokens = max(1, sum(count_tokens(p) for p in paragraphs) // max(1, len(paragraphs)))
-        cs = max(1, meta.chunk.max_tokens // avg_para_tokens)
 
-    chunks = chunk_paragraphs_simple(paragraphs, str(file_path), chunk_size_paras=cs, overlap_paras=ov)
+    # Choose chunking strategy from meta.yaml
+    strategy = meta.chunk.strategy if hasattr(meta.chunk, 'strategy') else "heading"
+
+    if strategy == "heading":
+        # Heading-level semantic chunking (default)
+        hl = meta.chunk.heading_levels if hasattr(meta.chunk, 'heading_levels') else [1, 2, 3]
+        chunks = chunk_by_headings(
+            paragraphs,
+            str(file_path),
+            max_tokens=max_tokens,
+            overlap_paras=ov,
+            heading_levels=hl,
+        )
+    else:
+        # Paragraph-level fallback
+        cs = chunk_size_paras
+        if cs <= 0:
+            avg_para_tokens = max(1, sum(count_tokens(p) for p in paragraphs) // max(1, len(paragraphs)))
+            cs = max(1, meta.chunk.max_tokens // avg_para_tokens)
+        chunks = chunk_paragraphs_simple(paragraphs, str(file_path), chunk_size_paras=cs, overlap_paras=ov)
 
     if not chunks:
         print(f"pm index: {file_path}: no content to index", file=sys.stderr)

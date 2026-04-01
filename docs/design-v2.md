@@ -330,41 +330,94 @@ INSERT INTO memories_vec (chunk_id, embedding) VALUES (?, ?);
 
 ## 六、chunk 切割算法
 
-### 5.1 语义优先切分（改进版）
+### 6.1 双策略：段落优先 / 标题级
 
 ```
-输入：文本 + max_tokens + overlap_paras
-输出：List[Chunk] = {chunk_id, content, para_indices, token_count}
-
-流程：
-1. 按 \n\n 切出所有段落（保留完整段落，不破坏句子）
-2. 从第一个段落开始，逐段落送入 tokenizer 累计 token 数
-3. 当累计 >= max_tokens - (overlap_paras 的 token 数)，开始下一个 chunk
-4. 新 chunk 的头部包含 overlap_paras 个前序段落（完整段落，不破坏语义）
-5. 如果单个段落本身就超过 max_tokens，则在该段落内部按句子断句（。？！等）
-6. 每个 chunk 记录 (chunk_id, para_indices, token_count, content)
-
-chunk_id 格式：{file_path}::{chunk_index}
-示例：demands/feature-A.md::0
+meta.yaml 配置：
+chunk:
+  strategy: heading    # "heading" | "paragraph"
+  max_tokens: 512
+  overlap: 2           # 段落数（非 token）
+  heading_levels: [1, 2, 3]   # H1/H2/H3 作为语义单元
 ```
 
-### 5.2 overlap 语义定义
+**strategy=heading（默认）：按 Markdown 标题层级切分**
 
-overlap 以**段落数**为单位，而非 token 数。这样保证：
-- overlap 始终卡在段落边界，不会在句子中间切开
-- 相邻 chunk 共享完整的上下文段落，语义连贯
-- 配置示例：`overlap_paras: 2` 表示每个新 chunk 头部包含前 2 个完整段落
+每个 H1/H2/H3 标题作为一个独立语义单元：
+```
+# 第一章         ← chunk 边界
+内容...
 
-### 5.3 超长段落兜底
+## 1.1 节      ← chunk 边界
+内容...
 
-当单个段落的 token 数就超过 max_tokens 时，按句子断句：
+### 1.1.1 小节  ← chunk 边界
+内容...
+```
+
+算法：
+1. 解析 Markdown，识别 `^#{1,3}\s` 标题行
+2. 每个标题 + 其后续内容 = 一个语义单元
+3. 若单元 token 超过 max_tokens，在该单元内按句子断句（。？！；\n）
+4. 无标题的文件 → 回退到 paragraph 策略
+
+**strategy=paragraph：段落级切分（兼容旧逻辑）**
+
+```
+1. 按 \n\n 切出所有段落
+2. 从第一个段落开始，逐段落累计 token 数
+3. 当累计 >= max_tokens，开始下一个 chunk
+4. 新 chunk 头部包含前 overlap_paras 个完整段落
+5. 单段落超过 max_tokens → 按句子断句
+```
+
+### 6.2 overlap 语义定义
+
+overlap 以**段落数**为单位，而非 token 数：
+- `overlap: 2` 表示每个新 chunk 头部包含前 2 个完整段落
+- overlap 始终卡在段落边界，不在句子中间切开
+
+### 6.3 超长语义单元兜底
+
+当单个标题单元 token 数超过 max_tokens 时，按句子断句：
 ```
 断句符：。？！；\n
 取完整句子，直到累计 >= max_tokens
 剩余内容从下一 chunk 重新开始
 ```
 
-### 5.4 更新时的 re-chunk
+### 6.4 代码块和表格保护
+
+```yaml
+chunk:
+  preserve:
+    - code_blocks   # ``` ``` 内的内容不切开
+    - tables        # Markdown 表格不切开
+```
+
+识别方式：
+- 代码块：正则 `` ``` `` 检测，进入代码块模式直到下一个 `` ``` ``
+- 表格：识别 `|` 分隔行，整表作为整体
+
+### 6.5 chunk_id 格式
+
+`{file_path}::{chunk_index}`
+示例：`demands/feature-A.md::0`
+
+### 6.6 Chunk 数据结构
+
+```python
+@dataclass
+class Chunk:
+    chunk_id: str
+    content: str           # 实际文本内容
+    heading_level: int    # 0=无标题, 1=H1, 2=H2, 3=H3
+    heading_text: str     # 标题文本（无标题则空字符串）
+    para_indices: list[int]  # 覆盖的段落索引
+    token_count: int
+```
+
+### 6.7 更新时的 re-chunk
 
 ```
 skill.update(id, new_content)
