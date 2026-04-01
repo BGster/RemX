@@ -1,6 +1,6 @@
 # PM CLI 用户指南
 
-Project-Manager v2 — 命令行工具参考手册。
+Remx v2 — 命令行工具参考手册。
 
 ---
 

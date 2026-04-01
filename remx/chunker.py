@@ -1,4 +1,4 @@
-"""Chunking logic for Project-Manager v2.
+"""Chunking logic for Remx v2.
 
 Splits a markdown file into paragraphs, then groups paragraphs into chunks
 respecting max_tokens (soft limit) with paragraph-level overlap.

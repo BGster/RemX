@@ -1,4 +1,4 @@
-"""Configuration management for Project-Manager."""
+"""Configuration management for Remx."""
 from pathlib import Path
 from typing import Optional
 

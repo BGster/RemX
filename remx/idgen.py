@@ -1,4 +1,4 @@
-"""ID generation for Project-Manager memory entries."""
+"""ID generation for Remx memory entries."""
 import random
 import string
 from pathlib import Path

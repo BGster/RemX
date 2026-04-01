@@ -1,4 +1,4 @@
-"""Schema models for meta.yaml (Project-Manager v2)."""
+"""Schema models for meta.yaml (Remx v2)."""
 from pathlib import Path
 from typing import Any, Optional
 

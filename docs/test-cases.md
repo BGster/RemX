@@ -1,4 +1,4 @@
-# Project-Manager 测试用例文档
+# Remx 测试用例文档
 
 > 测试工程师：Tester | 基于：`docs/tech-spec.md` v1.0 + `docs/adr-001-technical-architecture.md` | 日期：2026-03-31
 
