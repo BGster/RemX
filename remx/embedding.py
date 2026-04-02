@@ -21,10 +21,19 @@ class OllamaEmbedder(Embedder):
         self.base_url = base_url
         self.model = model
         self.timeout = timeout
+        self._client: Optional[httpx.Client] = None
+
+    @property
+    def client(self) -> httpx.Client:
+        """Lazily-create and reuse a single httpx.Client instance."""
+        if self._client is None:
+            self._client = httpx.Client(timeout=self.timeout)
+        return self._client
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        embeddings = []
-        with httpx.Client(timeout=self.timeout) as client:
+        client = self.client
+        try:
+            embeddings = []
             for text in texts:
                 resp = client.post(
                     f"{self.base_url}/api/embeddings",
@@ -32,7 +41,9 @@ class OllamaEmbedder(Embedder):
                 )
                 resp.raise_for_status()
                 embeddings.append(resp.json()["embedding"])
-        return embeddings
+            return embeddings
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"Ollama embed failed: {e}") from e
 
 
 class OpenAIEmbedder(Embedder):
@@ -54,19 +65,18 @@ class OpenAIEmbedder(Embedder):
         return self._client
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        client = self._get_client()
         try:
             from openai import OpenAI
-            if isinstance(client, OpenAI):
-                response = client.embeddings.create(
-                    model=self.model,
-                    input=texts,
-                )
-                return [item.embedding for item in response.data]
-        except Exception:
-            pass
-        # Fallback: return zero vectors
-        return [[0.0] * self.dimension for _ in texts]
+            client = self._get_client()
+            if not isinstance(client, OpenAI):
+                raise RuntimeError(f"expected OpenAI client, got {type(client).__name__}")
+            response = client.embeddings.create(
+                model=self.model,
+                input=texts,
+            )
+            return [item.embedding for item in response.data]
+        except Exception as e:
+            raise RuntimeError(f"OpenAI embed failed: {e}") from e
 
 
 def create_embedder(
@@ -87,13 +97,10 @@ def create_embedder(
         timeout: request timeout in seconds
         api_key: OpenAI API key (required for OpenAI provider)
     """
-    try:
-        if provider == "ollama":
-            return OllamaEmbedder(base_url=base_url, model=model, timeout=timeout)
-        elif provider == "openai" and api_key:
-            return OpenAIEmbedder(api_key=api_key, model=model, dimension=dimension)
-    except Exception:
-        pass
+    if provider == "ollama":
+        return OllamaEmbedder(base_url=base_url, model=model, timeout=timeout)
+    if provider == "openai" and api_key:
+        return OpenAIEmbedder(api_key=api_key, model=model, dimension=dimension)
     return None
 
 
@@ -107,5 +114,6 @@ def get_embedding(
         return None
     try:
         return embedder.embed([text])[0]
-    except Exception:
+    except Exception as e:
+        # Silently return None — caller handles missing embedding gracefully
         return None
