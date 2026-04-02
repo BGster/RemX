@@ -108,9 +108,9 @@ def index_cmd(
             provider=emb_cfg.provider if emb_cfg else "ollama",
             model=emb_cfg.model if emb_cfg else "bge-m3",
             dimension=meta_cfg.vector.dimensions,
-            ollama_base_url=emb_cfg.ollama_base_url if emb_cfg else "http://localhost:11434",
-            openai_api_key=emb_cfg.openai_api_key if emb_cfg else None,
-            openai_model=emb_cfg.openai_model if emb_cfg else "text-embedding-3-small",
+            base_url=emb_cfg.base_url if emb_cfg else "http://localhost:11434",
+            timeout=emb_cfg.timeout if emb_cfg else 60,
+            api_key=emb_cfg.api_key if emb_cfg else None,
         )
 
     cs = chunk_size if chunk_size > 0 else 1

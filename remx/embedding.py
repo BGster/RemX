@@ -73,17 +73,25 @@ def create_embedder(
     provider: str = "ollama",
     model: str = "bge-m3",
     dimension: int = 1024,
-    ollama_base_url: str = "http://localhost:11434",
-    ollama_timeout: int = 60,
-    openai_api_key: Optional[str] = None,
-    openai_model: str = "text-embedding-3-small",
+    base_url: str = "http://localhost:11434",
+    timeout: int = 60,
+    api_key: Optional[str] = None,
 ) -> Optional[Embedder]:
-    """Create an embedder based on config."""
+    """Create an embedder based on config.
+
+    Args:
+        provider: "ollama" or "openai"
+        model: Ollama model name (e.g. "bge-m3") or OpenAI model name
+        dimension: embedding vector dimension (Ollama: from meta.yaml; OpenAI: 1536)
+        base_url: Ollama base URL
+        timeout: request timeout in seconds
+        api_key: OpenAI API key (required for OpenAI provider)
+    """
     try:
         if provider == "ollama":
-            return OllamaEmbedder(base_url=ollama_base_url, model=model, timeout=ollama_timeout)
-        elif provider == "openai" and openai_api_key:
-            return OpenAIEmbedder(api_key=openai_api_key, model=openai_model, dimension=dimension)
+            return OllamaEmbedder(base_url=base_url, model=model, timeout=timeout)
+        elif provider == "openai" and api_key:
+            return OpenAIEmbedder(api_key=api_key, model=model, dimension=dimension)
     except Exception:
         pass
     return None

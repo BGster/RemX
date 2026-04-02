@@ -9,11 +9,11 @@ from pydantic import BaseModel, Field, field_validator
 # ─── Embedder Config ──────────────────────────────────────────────────────────
 
 class EmbedderConfig(BaseModel):
-    provider: str = "ollama"          # "ollama" | "openai"
-    model: str = "bge-m3"
-    ollama_base_url: str = "http://localhost:11434"
-    openai_api_key: Optional[str] = None
-    openai_model: str = "text-embedding-3-small"
+    provider: str = "ollama"           # "ollama" | "openai"
+    model: str = "bge-m3"            # Ollama: 本地模型名；OpenAI: 官方模型名
+    base_url: str = "http://localhost:11434"
+    timeout: int = 60
+    api_key: Optional[str] = None    # OpenAI API key（仅 OpenAI 需要）
 
 
 # ─── Normal Dimensions ────────────────────────────────────────────────────────
