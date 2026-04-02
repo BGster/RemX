@@ -28,6 +28,7 @@ from .index_ import run_index as index_run
 from .init_ import run_init as init_run
 from .parse import run_parse as parse_run
 from .retrieve_ import run_retrieve as retrieve_run
+from .schema import MetaYaml
 
 app = typer.Typer(name="remx", no_args_is_help=True, invoke_without_command=False)
 console = typer.echo
@@ -94,7 +95,6 @@ def index_cmd(
     no_embed: bool = typer.Option(False, "--no-embed", help="Skip embedding generation"),
 ):
     """Index a single file into memories + chunks + memories_vec."""
-    from .schema import MetaYaml
     try:
         meta_cfg = MetaYaml.load(meta)
     except Exception as e:
