@@ -101,7 +101,7 @@ def run_index(
     # Validate dimension values
     for dim_name, dim_val in [("category", category), ("priority", priority), ("status", status)]:
         if dim_val and not meta.validate_value(dim_name, str(dim_val)):
-            print("remx index: {file_path}: warning: {dim_name}='{dim_val}' not in meta.yaml config; allowing anyway",
+            print(f"remx index: {file_path}: warning: {dim_name}='{dim_val}' not in meta.yaml config; allowing anyway",
                   file=sys.stderr)
 
     # ── 4. Chunk content ───────────────────────────────────────────────────────
