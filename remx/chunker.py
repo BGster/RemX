@@ -381,7 +381,7 @@ def _split_by_sentences(
     sentences = _SENTENCE_END_RE.split(text)
     current: list[str] = []
     current_tokens = 0
-    chunk_index = 0
+    sub_chunk_index = 0
 
     for sent in sentences:
         sent = sent.strip()
@@ -391,7 +391,7 @@ def _split_by_sentences(
 
         if current_tokens + sent_tokens >= max_tokens and current:
             chunk_text = "".join(current)
-            chunk_id = make_chunk_id(file_path, chunk_index)
+            chunk_id = make_chunk_id(file_path, sub_chunk_index)
             chunks.append(Chunk(
                 chunk_id=chunk_id,
                 content=chunk_text,
@@ -400,7 +400,7 @@ def _split_by_sentences(
                 heading_level=heading_level,
                 heading_text=heading_text,
             ))
-            chunk_index += 1
+            sub_chunk_index += 1
             current = []
             current_tokens = 0
 
@@ -409,7 +409,7 @@ def _split_by_sentences(
 
     if current:
         chunk_text = "".join(current)
-        chunk_id = make_chunk_id(file_path, chunk_index)
+        chunk_id = make_chunk_id(file_path, sub_chunk_index)
         chunks.append(Chunk(
             chunk_id=chunk_id,
             content=chunk_text,
