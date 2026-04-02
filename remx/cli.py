@@ -45,11 +45,11 @@ def _meta_path(ctx: typer.Context) -> Path:
 
 @app.command("parse")
 def parse_cmd(
-    meta: Optional[Path] = typer.Argument(None, help="Path to meta.yaml (reads stdin if '-')"),
+    meta: Optional[Path] = typer.Argument(None, help="Path to meta.yaml (use '-' or --stdin to read from stdin)"),
     stdin: bool = typer.Option(False, "--stdin", help="Read meta.yaml content from stdin"),
 ):
     """Validate meta.yaml and output structured JSON."""
-    if stdin or (meta is None):
+    if stdin or meta is None or str(meta) == "-":
         # Read from stdin
         try:
             text = sys.stdin.read()
