@@ -1,4 +1,5 @@
 """Schema models for meta.yaml (RemX v2)."""
+import fnmatch
 from pathlib import Path
 from typing import Any, Optional
 
@@ -128,7 +129,6 @@ class MetaYaml(BaseModel):
             try:
                 rel = file_path.resolve().relative_to(scope_path)
                 # Match pattern loosely (glob-style)
-                import fnmatch
                 if fnmatch.fnmatch(rel.name, scope.pattern) or fnmatch.fnmatch(rel.name, "*" + scope.pattern.replace("*.", "")):
                     return scope
             except ValueError:
