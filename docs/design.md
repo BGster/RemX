@@ -1,11 +1,11 @@
-# Project-Manager
+# RemX
 
 项目记忆与知识管理工具，支持向量检索、用户隔离、长期维护。
 
 ## 目录结构
 
 ```
-project-manager/
+remx/
 ├── .pm.yaml              # 配置文件
 ├── .gitignore
 ├── memory.db             # SQLite + sqlite-vec 向量数据库

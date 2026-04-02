@@ -127,6 +127,13 @@ ipython_config.py
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
 __pypackages__/
 
+# RemX specific
+.venv/
+memory.db
+*.db
+meta.yaml
+!meta.yaml.example
+
 # Celery stuff
 celerybeat-schedule
 celerybeat.pid
