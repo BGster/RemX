@@ -197,6 +197,12 @@ def write_memory(
         conn.execute("BEGIN")
 
         # Upsert memory (delete first for idempotency, then insert)
+        # Delete vectors BEFORE chunks/memories to avoid FK violations on re-index
+        if VEC_AVAILABLE:
+            conn.execute(
+                "DELETE FROM memories_vec WHERE chunk_id IN (SELECT chunk_id FROM chunks WHERE parent_id = ?)",
+                (memory["id"],)
+            )
         conn.execute(
             "DELETE FROM memories WHERE id = ?",
             (memory["id"],)
@@ -212,16 +218,6 @@ def write_memory(
             "DELETE FROM chunks WHERE parent_id = ?",
             (memory["id"],)
         )
-        # Delete old vectors for these chunk_ids
-        if VEC_AVAILABLE:
-            for ch in chunks:
-                try:
-                    conn.execute(
-                        "DELETE FROM memories_vec WHERE chunk_id = ?",
-                        (ch["chunk_id"],)
-                    )
-                except Exception:
-                    pass
 
         # Insert new chunks
         for ch in chunks:
