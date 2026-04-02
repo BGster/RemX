@@ -62,6 +62,8 @@ def parse_cmd(
             finally:
                 tmp_path.unlink(missing_ok=True)
             raise typer.Exit(code=rc)
+        except typer.Exit:
+            raise
         except Exception as e:
             print(f"remx parse: stdin error — {e}", file=sys.stderr)
             raise typer.Exit(code=1)
