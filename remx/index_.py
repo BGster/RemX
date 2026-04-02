@@ -1,4 +1,5 @@
 """remx index command — index a single file into memories + chunks + memories_vec."""
+import hashlib
 import json
 import sys
 from datetime import datetime, timedelta, timezone
@@ -111,11 +112,11 @@ def run_index(
     ov = overlap_paras if overlap_paras >= 0 else meta.chunk.overlap
 
     # Choose chunking strategy from meta.yaml
-    strategy = meta.chunk.strategy if hasattr(meta.chunk, 'strategy') else "heading"
+    strategy = getattr(meta.chunk, "strategy", "heading")
 
     if strategy == "heading":
         # Heading-level semantic chunking (default)
-        hl = meta.chunk.heading_levels if hasattr(meta.chunk, 'heading_levels') else [1, 2, 3]
+        hl = getattr(meta.chunk, "heading_levels", [1, 2, 3])
         chunks = chunk_by_headings(
             paragraphs,
             index_path,
@@ -127,7 +128,9 @@ def run_index(
         # Paragraph-level fallback
         cs = chunk_size_paras
         if cs <= 0:
-            avg_para_tokens = max(1, sum(count_tokens(p) for p in paragraphs) // max(1, len(paragraphs)))
+            # Pre-compute paragraph token counts once to avoid repeated tiktoken calls
+            para_tokens_list = [count_tokens(p) for p in paragraphs]
+            avg_para_tokens = max(1, sum(para_tokens_list) // max(1, len(paragraphs)))
             cs = max(1, meta.chunk.max_tokens // avg_para_tokens)
         chunks = chunk_paragraphs_simple(paragraphs, index_path, chunk_size_paras=cs, overlap_paras=ov)
 
@@ -140,23 +143,21 @@ def run_index(
 
     # ── 6. Generate memory id ───────────────────────────────────────────────────
     # Idempotent: based on file_path to avoid duplicates on re-index
-    import hashlib
-    memory_id = hashlib.sha256(str(file_path).encode()).hexdigest()[:16].upper()
+    file_path_str = str(file_path)
+    memory_id = hashlib.sha256(file_path_str.encode()).hexdigest()[:16].upper()
     # Prefix with category for readability
     memory_id = f"{category[:3].upper()}-{memory_id}"
 
     # ── 7. Embed chunks ─────────────────────────────────────────────────────────
-    chunk_dicts = []
-    for ch in chunks:
-        embedding = None
-        if embedder:
-            embedding = get_embedding(embedder, ch.content, meta.vector.dimensions)
-        chunk_dicts.append({
+    chunk_dicts = [
+        {
             "chunk_id": ch.chunk_id,
             "chunk_index": int(ch.chunk_id.rsplit("::", 1)[-1]),
             "content": ch.content,
-            "embedding": embedding,
-        })
+            "embedding": get_embedding(embedder, ch.content, meta.vector.dimensions) if embedder else None,
+        }
+        for ch in chunks
+    ]
 
     # ── 8. Build memory record ─────────────────────────────────────────────────
     now = now_iso()
@@ -166,7 +167,7 @@ def run_index(
         "priority": priority,
         "status": status,
         "type": doc_type,
-        "file_path": str(file_path),
+        "file_path": file_path_str,
         "chunk_count": len(chunks),
         "created_at": front_matter.get("created_at") or now,
         "updated_at": now,
