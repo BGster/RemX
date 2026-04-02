@@ -1,0 +1,49 @@
+[project]
+name = "remx"
+version = "0.2.0"
+description = "RemX — 配置驱动的项目外部记忆系统"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "BGster"}
+]
+keywords = ["memory", "vector-search", "sqlite-vec", "project-management", "rag"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+    "pydantic>=2.0.0",
+    "python-dateutil>=2.8.0",
+    "pyyaml>=6.0",
+    "httpx>=0.27.0",
+    "openai>=1.0.0",
+]
+
+[project.optional-dependencies]
+vec = ["sqlite-vec>=0.1.0"]
+
+[project.scripts]
+remx = "remx.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/BGster/RemX"
+Repository = "https://github.com/BGster/RemX"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["remx*"]
+exclude = ["remx.egg-info*", "build*", "docs*", "skills*", "tests*"]
+
+[tool.setuptools.package-data]
+remx = ["py.typed"]
