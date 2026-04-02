@@ -10,6 +10,7 @@ chunk_id format:
 Security: paths containing '..' are rejected to prevent directory escape.
 """
 import re
+import sys
 import tiktoken
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -70,15 +71,26 @@ _CODE_FENCE_RE = re.compile(r"^```", re.MULTILINE)
 # Sentence-ending characters for fallback sentence splitting
 _SENTENCE_END_RE = re.compile(r"[。？！；\n]")
 
+# ─── tiktoken encoder cache (avoid repeated get_encoding calls) ───────────────
+_ENCODER_CACHE: dict[str, tiktoken.Encoding] = {}
+
 
 def count_tokens(text: str, model: str = "cl100k_base") -> int:
-    """Count tokens using tiktoken (GPT-4 / cl100k_base encoding)."""
-    try:
-        enc = tiktoken.get_encoding(model)
+    """Count tokens using tiktoken (GPT-4 / cl100k_base encoding).
+
+    The encoder is cached after the first call per model to avoid
+    O(n) re-initialisation overhead inside tight loops.
+    """
+    if model not in _ENCODER_CACHE:
+        try:
+            _ENCODER_CACHE[model] = tiktoken.get_encoding(model)
+        except Exception:
+            # Fallback: naive word count * 1.3 as rough token estimate
+            _ENCODER_CACHE[model] = None
+    enc = _ENCODER_CACHE.get(model)
+    if enc is not None:
         return len(enc.encode(text))
-    except Exception:
-        # Fallback: naive word count * 1.3 as rough token estimate
-        return int(len(text.split()) * 1.3)
+    return int(len(text.split()) * 1.3)
 
 
 def split_paragraphs(text: str) -> list[str]:
@@ -251,7 +263,6 @@ def chunk_by_headings(
     3. If unit token count > max_tokens, split within by sentences
     4. Units are emitted as chunks, respecting overlap via overlap_paras
     """
-    import sys
     if heading_levels is None:
         heading_levels = [1, 2, 3]
 
@@ -435,7 +446,6 @@ def chunk_paragraphs_simple(
     Each chunk contains exactly chunk_size_paras paragraphs (or fewer for the last).
     overlap_paras paragraphs from the end of the previous chunk are prepended.
     """
-    import sys
     chunks: list[Chunk] = []
     if not paragraphs:
         return []
