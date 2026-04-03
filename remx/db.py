@@ -329,19 +329,19 @@ def gc_soft_delete(
 
         where = " AND ".join(conditions)
 
-        conn.execute(
+        cursor = conn.execute(
             f"UPDATE memories SET deprecated = 1, updated_at = ? WHERE {where}",
             [now] + params,
         )
-        expired_count = conn.rowcount
+        expired_count = cursor.rowcount
 
         # Soft-delete their chunks
-        conn.execute(
+        cursor = conn.execute(
             f"UPDATE chunks SET deprecated = 1, updated_at = ? "
             f"WHERE parent_id IN (SELECT id FROM memories WHERE deprecated = 1)",
             (now,),
         )
-        chunk_count = conn.rowcount
+        chunk_count = cursor.rowcount
 
         conn.commit()
 
@@ -369,12 +369,12 @@ def gc_purge(db_path: Path) -> dict[str, int]:
                     print(f"[remx] WARNING: could not delete vector for {row['chunk_id']}: {e}", file=sys.stderr)
 
         # Delete chunks
-        conn.execute("DELETE FROM chunks WHERE deprecated = 1")
-        chunk_count = conn.rowcount
+        cursor = conn.execute("DELETE FROM chunks WHERE deprecated = 1")
+        chunk_count = cursor.rowcount
 
         # Delete memories
-        conn.execute("DELETE FROM memories WHERE deprecated = 1")
-        memory_count = conn.rowcount
+        cursor = conn.execute("DELETE FROM memories WHERE deprecated = 1")
+        memory_count = cursor.rowcount
 
         conn.commit()
         conn.execute("VACUUM")
@@ -411,7 +411,9 @@ def retrieve(
         # Handle special expires_at comparisons
         if "expires_at" in filter:
             val = filter["expires_at"]
-            if isinstance(val, dict):
+            if val is None:
+                conditions.append("expires_at IS NULL")
+            elif isinstance(val, dict):
                 for op, v in val.items():
                     conditions.append(f"expires_at {op} ?")
                     params.append(v)
