@@ -9,7 +9,7 @@ from typing import Any, Optional
 
 import sqlite3
 
-from .records import GCReport
+
 
 try:
     import sqlite_vec
@@ -314,10 +314,10 @@ def _scope_clause(scope_path: Optional[Path]) -> tuple[str, list[Any]]:
 def gc_collect(
     db_path: Path,
     scope_path: Optional[Path] = None,
-) -> GCReport:
+) -> dict[str, Any]:
     """Query deprecated/expired records for GC report.
 
-    Returns a GCReport with:
+    Returns a dict with:
       - expired_memories: list of memory records past expires_at
       - deprecated_memories: list of already-soft-deleted records
       - total_chunks: count of associated chunks
@@ -357,11 +357,11 @@ def gc_collect(
             "(SELECT id FROM memories WHERE deprecated = 1)"
         ).fetchone()[0]
 
-        return GCReport(
-            expired_memories=[dict(r) for r in expired_rows],
-            deprecated_memories=[dict(r) for r in deprecated_rows],
-            total_chunks=chunk_count,
-        )
+        return {
+            "expired_memories": [dict(r) for r in expired_rows],
+            "deprecated_memories": [dict(r) for r in deprecated_rows],
+            "total_chunks": chunk_count,
+        }
     finally:
         conn.close()
 
