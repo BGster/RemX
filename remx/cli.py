@@ -33,6 +33,22 @@ from .schema import MetaYaml
 app = typer.Typer(name="remx", no_args_is_help=True, invoke_without_command=False)
 console = typer.echo
 
+# Cached stdin content (set by __main__.py before typer runs)
+_STDIN_CACHE: Optional[str] = None
+
+
+def _get_stdin_content() -> str:
+    """Get cached stdin content or fall back to reading directly."""
+    global _STDIN_CACHE
+    if _STDIN_CACHE is not None:
+        content = _STDIN_CACHE
+        # Clear cache after use to prevent re-use in subsequent commands
+        _STDIN_CACHE = None
+        return content
+    if not sys.stdin.isatty():
+        return sys.stdin.read()
+    return ""
+
 
 def _db_path(ctx: typer.Context) -> Path:
     return ctx.params.get("db", Path("memory.db"))
@@ -51,9 +67,9 @@ def parse_cmd(
 ):
     """Validate meta.yaml and output structured JSON."""
     if stdin or meta is None or str(meta) == "-":
-        # Read from stdin
+        # Read from cached stdin
         try:
-            text = sys.stdin.read()
+            text = _get_stdin_content()
             import tempfile, yaml
             with tempfile.NamedTemporaryFile(suffix=".yaml", mode="w", delete=False) as tf:
                 tf.write(text)
