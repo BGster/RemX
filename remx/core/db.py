@@ -67,6 +67,7 @@ CHUNKS_COL_DEFS = """
     parent_id   TEXT NOT NULL,
     chunk_index INTEGER,
     content     TEXT NOT NULL,
+    content_hash TEXT,
     embedding   BLOB,
     created_at  TEXT,
     updated_at  TEXT,
@@ -82,6 +83,7 @@ INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_memories_file_path ON memories(file_path)",
     "CREATE INDEX IF NOT EXISTS idx_chunks_parent ON chunks(parent_id)",
     "CREATE INDEX IF NOT EXISTS idx_chunks_deprecated ON chunks(deprecated)",
+    "CREATE INDEX IF NOT EXISTS idx_chunks_content_hash ON chunks(content_hash)",
 ]
 
 
@@ -192,10 +194,16 @@ def write_memory(
 ) -> None:
     """Atomically write a memory record + its chunks + vectors.
 
+    Chunk deduplication by content_hash:
+    - If a new chunk's content_hash matches an existing chunk in the DB,
+      the existing chunk_id and vector are preserved (no re-embedding needed).
+    - Only chunks with new/changed content get new chunk_ids and embeddings.
+
     Args:
         db_path: database path
         memory: dict with keys matching memories columns (minus deprecated)
-        chunks: list of chunk dicts with keys: chunk_id, chunk_index, content, embedding
+        chunks: list of chunk dicts with keys: chunk_id, chunk_index, content,
+                 content_hash, embedding (embedding may be None to skip)
         vector_dimensions: embedding dimension for vec table
     """
     now = datetime.now(timezone.utc).isoformat()
@@ -203,9 +211,39 @@ def write_memory(
     try:
         conn.execute("BEGIN")
 
-        # Upsert memory (delete first for idempotency, then insert)
-        # Correct delete order: chunks → memories_vec → memories
-        # (chunks have no dependents, memories_vec has no dependents, memories has chunks as dependent)
+        # Build hash → (chunk_id, embedding) map from existing chunks
+        existing_chunks = {
+            row["content_hash"]: (row["chunk_id"], row["embedding"])
+            for row in conn.execute(
+                "SELECT chunk_id, content_hash, embedding FROM chunks WHERE parent_id = ?",
+                (memory["id"],)
+            ).fetchall()
+            if row["content_hash"]
+        }
+
+        # Determine which chunks to upsert: reuse existing chunk_id+vector for
+        # unchanged content_hash, assign new chunk_ids for new/changed content
+        upsert_chunks: list[dict[str, Any]] = []
+        reused_count = 0
+        for ch in chunks:
+            content_hash = ch.get("content_hash")
+            if content_hash and content_hash in existing_chunks:
+                old_chunk_id, old_embedding = existing_chunks[content_hash]
+                # Reuse existing chunk_id and vector (skip embedding)
+                upsert_chunks.append({
+                    **ch,
+                    "chunk_id": old_chunk_id,
+                    "embedding": old_embedding,  # preserve existing vector
+                    "reused": True,
+                })
+                reused_count += 1
+            else:
+                upsert_chunks.append({**ch, "reused": False})
+
+        if reused_count:
+            print(f"[remx] write_memory: reused {reused_count}/{len(chunks)} chunk vectors (content hash match)")
+
+        # Delete old chunks + vectors (correct order: vec → chunks → memories)
         conn.execute(
             "DELETE FROM chunks WHERE parent_id = ?",
             (memory["id"],)
@@ -219,29 +257,34 @@ def write_memory(
             "DELETE FROM memories WHERE id = ?",
             (memory["id"],)
         )
+
+        # Insert memory
         conn.execute(
             f"INSERT INTO memories ({', '.join(memory.keys())}, deprecated) "
             f"VALUES ({', '.join(['?'] * len(memory))}, 0)",
             list(memory.values()),
         )
 
-        # Insert new chunks using executemany for batch efficiency
+        # Insert chunks with content_hash
         chunk_rows = [
-            (ch["chunk_id"], memory["id"], ch["chunk_index"], ch["content"], now, now)
-            for ch in chunks
+            (
+                ch["chunk_id"], memory["id"], ch["chunk_index"],
+                ch["content"], ch.get("content_hash"), now, now,
+            )
+            for ch in upsert_chunks
         ]
         conn.executemany(
-            "INSERT INTO chunks (chunk_id, parent_id, chunk_index, content, created_at, updated_at, deprecated) "
-            "VALUES (?, ?, ?, ?, ?, ?, 0)",
+            "INSERT INTO chunks (chunk_id, parent_id, chunk_index, content, content_hash, created_at, updated_at, deprecated) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
             chunk_rows,
         )
 
-        # Batch-insert vectors for chunks that have embeddings
+        # Batch-insert vectors only for chunks that have new embeddings
         if VEC_AVAILABLE:
             vec_rows = [
                 (ch["chunk_id"], serialize_vector(ch["embedding"]))
-                for ch in chunks
-                if ch.get("embedding")
+                for ch in upsert_chunks
+                if ch.get("embedding") and not ch.get("reused")
             ]
             if vec_rows:
                 try:

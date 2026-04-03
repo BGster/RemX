@@ -3,7 +3,7 @@
 Implements 6 commands:
   remx parse < meta.yaml
   remx init [--reset] [--db <path>] [--meta <path>]
-  remx index <path> [--db <path>] [--meta <path>]
+  remx index <path> [--db <path>] [--meta <path>] [--dedup-threshold <float>]
   remx gc [--scope <path>] [--dry-run] [--purge] [--db <path>]
   remx retrieve [--filter <json>] [--query <text>] [--db <path>] [--limit <n>]
   remx stats [--db <path>] [--meta <path>]
@@ -60,14 +60,6 @@ def _get_stdin_content() -> str:
     return ""
 
 
-def _db_path(ctx: typer.Context) -> Path:
-    return ctx.params.get("db", Path("memory.db"))
-
-
-def _meta_path(ctx: typer.Context) -> Path:
-    return ctx.params.get("meta", Path("meta.yaml"))
-
-
 # ─── Entry Points ─────────────────────────────────────────────────────────────
 
 @app.command("parse")
@@ -119,6 +111,9 @@ def index_cmd(
     overlap: int = typer.Option(-1, "--overlap", help="Paragraph overlap (default from meta.yaml)"),
     max_tokens: int = typer.Option(512, "--max-tokens", help="Max tokens per chunk"),
     no_embed: bool = typer.Option(False, "--no-embed", help="Skip embedding generation"),
+    dedup_threshold: Optional[float] = typer.Option(
+        None, "--dedup-threshold", help="Enable semantic dedup for knowledge/principle (cosine similarity, e.g. 0.95)",
+    ),
 ):
     """Index a single file into memories + chunks + memories_vec."""
     try:
@@ -151,6 +146,7 @@ def index_cmd(
             db_path=db,
             config=config,
             embedder=embedder,
+            dedup_threshold=dedup_threshold,
         )
     except Exception:
         raise typer.Exit(code=1)

@@ -75,7 +75,7 @@ def _resolve_file_context(
     scope = meta.find_scope(file_path, meta_yaml_path.parent)
     scope_category = None
     if scope:
-        scope_category = meta.scope_category(scope)
+        scope_category = meta.extract_category_from_scope(scope)
 
     # Compute index_path (display path for chunk_ids)
     if scope:
@@ -172,16 +172,18 @@ def _build_memory_and_chunks(
     # Compute expires_at (stale_after uses ctx.now as reference)
     expires_at = _compute_expires_at(meta, ctx.category, ctx.status, updated_at=ctx.now)
 
-    # Embed chunks
-    chunk_dicts = [
-        {
+    # Embed chunks (embedding skipped if content_hash matches existing DB chunk)
+    chunk_dicts = []
+    for ch in chunks:
+        content_hash = hashlib.sha256(ch.content.encode()).hexdigest()[:16]
+        embedding = get_embedding(embedder, ch.content, meta.vector.dimensions) if embedder else None
+        chunk_dicts.append({
             "chunk_id": ch.chunk_id,
             "chunk_index": int(ch.chunk_id.rsplit("::", 1)[-1]),
             "content": ch.content,
-            "embedding": get_embedding(embedder, ch.content, meta.vector.dimensions) if embedder else None,
-        }
-        for ch in chunks
-    ]
+            "content_hash": content_hash,
+            "embedding": embedding,
+        })
 
     memory = {
         "id": memory_id,
@@ -197,6 +199,72 @@ def _build_memory_and_chunks(
     }
 
     return memory, chunk_dicts
+
+
+def check_semantic_dedup(
+    chunks: list[dict],
+    ctx: FileContext,
+    db_path: Path,
+    embedder: Any,
+    meta: MetaYaml,
+    threshold: float = 0.95,
+) -> list[tuple[str, str, float]]:
+    """Check for cross-file semantic duplicates in knowledge/principle categories.
+
+    For each new chunk, search for similar existing chunks in knowledge/principle
+    categories. Returns list of (new_chunk_id, existing_file_path, similarity).
+    Only checks categories that typically contain reusable knowledge.
+    """
+    from ..core.db import get_db, deserialize_vector, serialize_vector
+    import struct
+
+    if not embedder:
+        return []
+
+    # Only check knowledge and principle categories
+    check_categories = {"knowledge", "principle"}
+    if ctx.category not in check_categories:
+        return []
+
+    conn = get_db(db_path)
+    try:
+        dupes: list[tuple[str, str, float]] = []
+
+        for ch in chunks:
+            if not ch.get("embedding"):
+                continue
+
+            # Search for similar chunks in check_categories
+            vector_dim = meta.vector.dimensions
+            vec_blob = serialize_vector(ch["embedding"])
+
+            rows = conn.execute(
+                f"""
+                SELECT v.chunk_id, v.distance, m.file_path, c.content
+                FROM memories_vec v
+                JOIN chunks c ON c.chunk_id = v.chunk_id
+                JOIN memories m ON m.id = c.parent_id
+                WHERE m.category IN ({', '.join(['?'] * len(check_categories))})
+                  AND m.deprecated = 0
+                  AND c.deprecated = 0
+                LIMIT 10
+                """,
+                list(check_categories),
+            ).fetchall()
+
+            for row in rows:
+                # Skip same file
+                if row["file_path"] == str(ctx.file_path):
+                    continue
+                # Convert L2 distance to cosine similarity
+                distance = row["distance"]
+                similarity = 1.0 / (1.0 + distance)
+                if similarity >= threshold:
+                    dupes.append((ch["chunk_id"], row["file_path"], round(similarity, 4)))
+
+        return dupes
+    finally:
+        conn.close()
 
 
 # ─── Compute Expires At ───────────────────────────────────────────────────────
@@ -237,6 +305,8 @@ def run_index(
     db_path: Path,
     config: IndexConfig = IndexConfig(),
     embedder: Optional[Any] = None,
+    *,
+    dedup_threshold: Optional[float] = None,
 ) -> IndexResult:
     """Index a single file into the database.
 
@@ -245,7 +315,8 @@ def run_index(
     2. Resolve file context (path + scope + front-matter)
     3. Chunk content (pure)
     4. Build memory + chunk records (with embedding)
-    5. Atomic write to DB
+    5. Semantic dedup check (optional, for knowledge/principle)
+    6. Atomic write to DB
 
     Args:
         file_path: file to index
@@ -253,6 +324,8 @@ def run_index(
         db_path: path to SQLite database
         config: IndexConfig with chunking parameters
         embedder: embedding provider (or None to skip vectors)
+        dedup_threshold: if set, enable cross-file semantic dedup for
+                         knowledge/principle categories (cosine similarity threshold)
 
     Returns:
         IndexResult on success
@@ -282,16 +355,24 @@ def run_index(
     # Step 4: Build records
     memory, chunk_dicts = _build_memory_and_chunks(ctx, chunks, meta, embedder)
 
-    # Step 5: Atomic write
-    try:
-        write_memory(
-            db_path=db_path,
-            memory=memory,
+    # Step 5: Semantic dedup check (knowledge/principle only)
+    if dedup_threshold is not None and embedder:
+        dupes = check_semantic_dedup(
             chunks=chunk_dicts,
-            vector_dimensions=meta.vector.dimensions,
+            ctx=ctx,
+            db_path=db_path,
+            embedder=embedder,
+            meta=meta,
+            threshold=dedup_threshold,
         )
-    except Exception as e:
-        raise ValueError(f"{file_path}: write error — {e}")
+        for chunk_id, existing_path, similarity in dupes:
+            print(
+                f"[remx] DEDUP WARNING: chunk {chunk_id[:20]}... is {similarity:.1%} "
+                f"similar to existing file: {existing_path}",
+                file=sys.stderr,
+            )
+
+    # Step 6: Atomic write
 
     print(f"remx index: indexed {file_path}")
     print(f"  memory_id: {memory['id']}")
