@@ -144,12 +144,10 @@ class MetaYaml(BaseModel):
                 continue
         return None
 
-    def scope_category(self, scope: IndexScope) -> Optional[str]:
+    def extract_category_from_scope(self, scope: IndexScope) -> Optional[str]:
         """Infer category from index_scope path (convention: last path component)."""
-        # Convention: scope path like "demands/" → category = "demand"
         name = Path(scope.path).name.rstrip("/")
         if name:
-            # strip common trailing 's' for singular form hint, but keep as-is
             return name
         return None
 
