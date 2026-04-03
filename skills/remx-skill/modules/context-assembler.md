@@ -24,13 +24,16 @@
 2. 构造 filter
      e.g.
      query: "关于认证模块的决定"
-     → { "category": "demand", "content": "认证" }
+     → 先用 --query 语义搜索（自动返回相关记忆）
      
      query: "所有 open 的 bug"
      → { "category": "issue", "status": "open", "type": "bug" }
 
 3. 调用 remx retrieve
-     remx retrieve --db <db> --filter '<json>' [--limit 20]
+     # 语义模式
+     remx retrieve --query '<query>' --db <db> --meta <meta.yaml> [--decay-weight 0.5]
+     # 过滤模式
+     remx retrieve --filter '<json>' --db <db> [--limit 20] [--no-embed]
 
 4. 组装上下文文本
      格式：

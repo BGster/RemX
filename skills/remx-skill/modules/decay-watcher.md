@@ -11,10 +11,10 @@
 
 ## 衰减函数类型
 
-| function | 行为 | 检查逻辑 |
+| function | 行为 | 计算逻辑 |
 |----------|------|----------|
-| `ttl` | 绝对 TTL | `expires_at = created_at + ttl_hours` |
-| `stale_after` | 相对超时 | `stale_at = updated_at + days` |
+| `ttl` | 绝对 TTL | `expires_at = now + ttl_hours`（固定，到期即删）|
+| `stale_after` | 相对超时 | `expires_at = updated_at + days`（每次 re-index 刷新）|
 | `never` | 永不过期 | 不检查，不警告 |
 
 ## 操作接口
@@ -37,7 +37,7 @@
    
    c. 对每条 record 检查：
       - ttl: 剩余时间 = expires_at - now
-      - stale_after: 剩余时间 = (updated_at + days) - now
+      - stale_after: 剩余时间 = expires_at - now（每次 re-index 刷新 updated_at）
       
    d. 若剩余时间 < 阈值（默认 24h）→ 记入 warning
 
