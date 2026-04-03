@@ -35,8 +35,8 @@ def run_gc(
         print(f"remx gc: collect error — {e}", file=sys.stderr)
         return 1
 
-    expired = report["expired_memories"]
-    deprecated = report["deprecated_memories"]
+    expired = report.expired_memories
+    deprecated = report.deprecated_memories
 
     # ── Dry run: just report ───────────────────────────────────────────────────
     if dry_run:
@@ -45,7 +45,7 @@ def run_gc(
         for m in expired:
             print(f"    {m['id']}  {m['file_path']}  expires_at={m['expires_at']}")
         print(f"  deprecated (already marked): {len(deprecated)}")
-        print(f"  chunks pending delete: {report['total_chunks']}")
+        print(f"  chunks pending delete: {report.total_chunks}")
         return 0
 
     # ── Soft delete expired ────────────────────────────────────────────────────
@@ -55,8 +55,8 @@ def run_gc(
         except Exception as e:
             print(f"remx gc: soft-delete error — {e}", file=sys.stderr)
             return 1
-        print(f"remx gc: soft-deleted {counts['expired_memories']} expired memories, "
-              f"{counts['chunks']} chunks")
+        print(f"remx gc: soft-deleted {counts.expired_memories} expired memories, "
+              f"{counts.chunks} chunks")
     else:
         print("remx gc: no expired records found")
 
@@ -67,8 +67,8 @@ def run_gc(
         except Exception as e:
             print(f"remx gc --purge: error — {e}", file=sys.stderr)
             return 1
-        print(f"remx gc: purged {purge_counts['memories']} memories, "
-              f"{purge_counts['chunks']} chunks (+ VACUUM)")
+        print(f"remx gc: purged {purge_counts.memories} memories, "
+              f"{purge_counts.chunks} chunks (+ VACUUM)")
     elif deprecated:
         print(f"remx gc: {len(deprecated)} deprecated records remain "
               f"(run `remx gc --purge` to physically delete)")

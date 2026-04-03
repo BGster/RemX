@@ -373,6 +373,15 @@ def run_index(
             )
 
     # Step 6: Atomic write
+    try:
+        write_memory(
+            db_path=db_path,
+            memory=memory,
+            chunks=chunk_dicts,
+            vector_dimensions=meta.vector.dimensions,
+        )
+    except Exception as e:
+        raise ValueError(f"{file_path}: write error — {e}")
 
     print(f"remx index: indexed {file_path}")
     print(f"  memory_id: {memory['id']}")
