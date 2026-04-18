@@ -87,7 +87,50 @@ INDEXES = [
 ]
 
 
+TOPOLOGY_TABLES_SQL = """
+CREATE TABLE IF NOT EXISTS memory_nodes (
+    id          TEXT PRIMARY KEY,
+    category    TEXT NOT NULL,
+    chunk       TEXT NOT NULL,
+    created_at INTEGER DEFAULT (unixepoch('now', 'subsec'))
+);
+CREATE TABLE IF NOT EXISTS memory_relations (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    rel_type    TEXT NOT NULL CHECK (rel_type IN (
+        '因果关系', '相关性', '对立性', '流程顺序性', '组成性', '依赖性'
+    )),
+    context     TEXT DEFAULT NULL,
+    description TEXT,
+    created_at  INTEGER DEFAULT (unixepoch('now', 'subsec'))
+);
+CREATE TABLE IF NOT EXISTS memory_relation_participants (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    relation_id INTEGER NOT NULL REFERENCES memory_relations(id) ON DELETE CASCADE,
+    node_id     TEXT NOT NULL REFERENCES memory_nodes(id) ON DELETE CASCADE,
+    role        TEXT NOT NULL,
+    UNIQUE(relation_id, node_id, role)
+);
+CREATE INDEX IF NOT EXISTS idx_participants_node ON memory_relation_participants(node_id);
+CREATE INDEX IF NOT EXISTS idx_participants_rel ON memory_relation_participants(relation_id);
+CREATE INDEX IF NOT EXISTS idx_relations_context ON memory_relations(context);
+"""
+
+
+def _init_topology_inline(db_path: Path) -> None:
+    """Create topology tables if not exist (called from init_db)."""
+    conn = get_db(db_path)
+    try:
+        for stmt in TOPOLOGY_TABLES_SQL.strip().split(";"):
+            stmt = stmt.strip()
+            if stmt:
+                conn.execute(stmt)
+        conn.commit()
+    finally:
+        conn.close()
+
+
 # ─── Init ─────────────────────────────────────────────────────────────────────
+
 
 def init_db(db_path: Path, vector_dimensions: int = 1024, reset: bool = False) -> None:
     """Create / rebuild all tables and vector index.
@@ -133,6 +176,9 @@ def init_db(db_path: Path, vector_dimensions: int = 1024, reset: bool = False) -
         conn.commit()
     finally:
         conn.close()
+
+    # Initialize topology tables (inline to avoid circular import)
+    _init_topology_inline(db_path)
 
 
 # ─── Vector serialization ──────────────────────────────────────────────────────

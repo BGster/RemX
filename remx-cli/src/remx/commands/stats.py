@@ -100,6 +100,20 @@ def run_stats(
         if decay_info:
             print(decay_info.rstrip())
 
+        # Topology stats
+        try:
+            total_nodes = conn.execute("SELECT COUNT(*) FROM memory_nodes").fetchone()[0]
+            total_relations = conn.execute("SELECT COUNT(*) FROM memory_relations").fetchone()[0]
+            rel_type_counts = conn.execute(
+                "SELECT rel_type, COUNT(*) as cnt FROM memory_relations GROUP BY rel_type"
+            ).fetchall()
+            if total_nodes > 0:
+                print(f"topology:  {total_nodes} nodes  {total_relations} relations")
+                for r in rel_type_counts:
+                    print(f"  {r['rel_type']}: {r['cnt']}")
+        except Exception:
+            pass
+
         return 0
     finally:
         conn.close()

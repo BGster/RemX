@@ -31,6 +31,7 @@ from .commands.gc import run_gc as gc_run
 from .commands.index import run_index as index_run, IndexConfig
 from .commands.init import run_init as init_run
 from .commands.parse import run_parse as parse_run
+from .commands.relate import run_relate as relate_run
 from .commands.retrieve import run_retrieve as retrieve_run
 from .commands.stats import run_stats as stats_run
 
@@ -238,3 +239,43 @@ def stats_cmd(
 def version_cmd():
     """Print version."""
     print(f"remx v{__version__}")
+
+
+@app.command("relate")
+def relate_cmd(
+    action: str = typer.Argument(..., help="Action: insert, delete, query, nodes, graph, expand"),
+    db: Path = typer.Option(Path("memory.db"), "--db", help="Database path"),
+    node_id: Optional[str] = typer.Option(None, "--node-id", help="Node ID(s), comma-separated for insert"),
+    rel_type: Optional[str] = typer.Option(None, "--rel-type", help="Relation type"),
+    context: Optional[str] = typer.Option(None, "--context", help="Context tag (e.g. group_chat, main_session)"),
+    description: Optional[str] = typer.Option(None, "--description", help="Human-readable description"),
+    roles: Optional[str] = typer.Option(None, "--roles", help="Comma-separated roles (cause,effect,component,whole,related,opponent)"),
+    current_context: Optional[str] = typer.Option(None, "--current-context", help="Current session context for filtering"),
+    max_depth: int = typer.Option(2, "--max-depth", help="Max BFS depth for graph/expand"),
+    max_additional: int = typer.Option(10, "--max-additional", help="Max additional entries from topology"),
+    limit: int = typer.Option(50, "--limit", help="Max nodes to list"),
+):
+    """Manage topology relations between memory entries.
+
+    Actions:
+      insert   Insert a relation: --node-id id1,id2 --rel-type 因果关系 [--roles cause,effect] [--context group_chat]
+      delete   Delete a relation: --node-id <relation_id>
+      query    Query relations for a node: --node-id <entry_id> [--current-context <ctx>]
+      nodes    List all nodes: [--limit <n>]
+      graph    BFS traversal: --node-id <entry_id> [--max-depth <n>] [--current-context <ctx>]
+      expand   Expand semantic results via topology (reads base results from stdin JSON)
+    """
+    rc = relate_run(
+        db_path=db,
+        action=action,
+        node_id=node_id,
+        rel_type=rel_type,
+        context=context,
+        description=description,
+        roles=roles,
+        current_context=current_context,
+        max_depth=max_depth,
+        max_additional=max_additional,
+        limit=limit,
+    )
+    raise typer.Exit(code=rc)
