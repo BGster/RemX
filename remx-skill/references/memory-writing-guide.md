@@ -8,7 +8,7 @@
 
 **每个 H1/H2/H3 标题 = 一个独立语义单元。**
 
-PM 按 Markdown 标题层级切分文件，每个标题及其后续内容构成一个 chunk。如果标题层级设置正确（`heading_levels: [1, 2, 3]`），每个 chunk 会自然对应一个完整的知识点或主题。
+RemX 按 Markdown 标题层级切分文件，每个标题及其后续内容构成一个 chunk。如果标题层级设置正确（`heading_levels: [1, 2, 3]`），每个 chunk 会自然对应一个完整的知识点或主题。
 
 ---
 
@@ -156,7 +156,7 @@ tmp/
 修改文件后重新索引：
 
 ```bash
-remx index <file> --db ./pm.db --meta ./meta.yaml --no-embed
+remx index <file> --db ./memory.db --meta ./meta.yaml --no-embed
 ```
 
 系统会自动删除旧记录（通过 memory_id 去重），不会产生重复。
