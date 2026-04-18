@@ -286,15 +286,43 @@ cat semantic_results.json | remx relate expand --db <path> \
 
 **返回：** JSON 数组，每条拓扑扩展记录含 `source: "topology"` 和 `depth`（距离语义命中节点的跳数）标记来源
 
-**示例：**
-```bash
-# 语义搜索结果拓扑扩展
-remx retrieve --query "认证模块" --db ./memory.db --meta ./meta.yaml > base.json
-cat base.json | remx relate expand --db ./memory.db --current-context main_session --max-additional 10
+**完整工作流：**
 
-# 深度扩展（扩大搜索范围）
+```bash
+# 第 1 步：语义搜索 → 得到基础结果
+remx retrieve --query "认证模块" --db ./memory.db --meta ./meta.yaml > base.json
+
+# 第 2 步：管道传给 expand，通过拓扑图扩展关联记忆
+cat base.json | remx relate expand --db ./memory.db \
+    --current-context main_session \
+    --max-depth 2 \
+    --max-additional 10
+
+# 深度扩展（覆盖更大范围，噪声可能增加）
 cat base.json | remx relate expand --db ./memory.db --max-depth 3 --max-additional 20
 ```
+
+**上下文隔离示例：**
+
+```bash
+# group_chat 上下文中，main_session 关系不对外暴露
+cat base.json | remx relate expand --db ./memory.db --current-context group_chat
+
+# main_session 上下文中，两者关系都可见
+cat base.json | remx relate expand --db ./memory.db --current-context main_session
+```
+
+**返回格式对比：**
+
+```json
+// 语义命中（来源：remx retrieve）
+{"id": "DEM-001", "category": "demand", "chunk": "...", "score": 0.87}
+
+// 拓扑扩展（来源：remx relate expand）
+{"id": "DEM-003", "category": "demand", "chunk": "...", "source": "topology", "depth": 2, "topology_relations": [...]}
+```
+
+> **提示：** `source: "topology"` 区分语义命中与拓扑扩展；`depth` 表示从语义命中节点到该节点的最短路径跳数。
 
 ---
 

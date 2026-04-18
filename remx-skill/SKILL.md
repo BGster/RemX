@@ -94,6 +94,24 @@ relation 的 context 决定何时可用：
 
 检索时传入 `--current-context` 参数按上下文过滤。
 
+**匹配规则（`match_context`）：**
+```python
+def match_context(relation_context: Optional[str], current: Optional[str]) -> bool:
+    if relation_context is None or relation_context == DEFAULT_CONTEXT:
+        return True   # NULL 或 "global" → 全局无条件匹配
+    return relation_context == current  # 精确匹配上下文标签
+```
+
+**示例：**
+| relation.context | current_context | 结果 |
+|-----------------|-----------------|------|
+| `NULL` | `main_session` | ✅ 匹配（全局）|
+| `NULL` | `group_chat` | ✅ 匹配（全局）|
+| `global` | 任意 | ✅ 匹配（全局）|
+| `main_session` | `main_session` | ✅ 匹配 |
+| `main_session` | `group_chat` | ❌ 不匹配 |
+| `group_chat` | `main_session` | ❌ 不匹配 |
+
 ### 拓扑增强的语义检索（topology_aware_recall）
 
 语义搜索找到的是字面相关记忆；拓扑扩展在此基础上，通过关系图发现语义未命中但结构相关的信息。
@@ -138,6 +156,7 @@ cat base.json | remx relate expand --db ./memory.db --current-context main_sessi
 | `query_relations(db_path, node_id, current_context=None)` | 查询某节点所有关系（含上下文过滤） |
 | `get_related_nodes(db_path, node_id, current_context=None, max_depth=2)` | BFS 图遍历，返回可达节点图 |
 | `topology_aware_recall(db_path, base_results, current_context=None, max_depth=2, max_additional=10)` | 语义结果 + 拓扑扩展合并 |
+| `match_context(relation_context, current)` | 判断某条 relation 是否在当前上下文可用 |
 
 **使用示例：**
 ```python
