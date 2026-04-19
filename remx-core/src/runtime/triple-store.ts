@@ -42,51 +42,6 @@ export interface TripleRow {
   participants: string; // GROUP_CONCAT result: "nodeId:role | ..."
 }
 
-// ─── Schema Init ─────────────────────────────────────────────────────────────
-
-export const TOPOLOGY_TABLES_SQL = `
-CREATE TABLE IF NOT EXISTS memory_nodes (
-    id          TEXT PRIMARY KEY,
-    category    TEXT NOT NULL,
-    chunk       TEXT NOT NULL,
-    created_at  INTEGER DEFAULT (unixepoch('now', 'subsec'))
-);
-CREATE TABLE IF NOT EXISTS memory_relations (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    rel_type    TEXT NOT NULL CHECK (rel_type IN (
-        '因果关系', '相关性', '对立性', '流程顺序性', '组成性', '依赖性'
-    )),
-    context     TEXT DEFAULT NULL,
-    description TEXT,
-    created_at  INTEGER DEFAULT (unixepoch('now', 'subsec'))
-);
-CREATE TABLE IF NOT EXISTS memory_relation_participants (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    relation_id INTEGER NOT NULL REFERENCES memory_relations(id) ON DELETE CASCADE,
-    node_id     TEXT NOT NULL REFERENCES memory_nodes(id) ON DELETE CASCADE,
-    -- Cascade cleanup: when a participant row is deleted, remove relations with no remaining participants
-    -- This is handled via application-level cleanup in deleteNode instead of a trigger
-    -- (triggers can't mutate other tables in some SQLite configurations)
-    role        TEXT NOT NULL,
-    UNIQUE(relation_id, node_id, role)
-);
-CREATE INDEX IF NOT EXISTS idx_participants_node ON memory_relation_participants(node_id);
-CREATE INDEX IF NOT EXISTS idx_participants_rel  ON memory_relation_participants(relation_id);
-CREATE INDEX IF NOT EXISTS idx_relations_context ON memory_relations(context);
-`;
-
-export function initSchema(dbPath?: string): void {
-  const d = getDb(dbPath);
-  try {
-    for (const stmt of TOPOLOGY_TABLES_SQL.trim().split(";")) {
-      const s = stmt.trim();
-      if (s) d.exec(s);
-    }
-  } finally {
-    d.close();
-  }
-}
-
 // ─── Node Operations ─────────────────────────────────────────────────────────
 
 export { ensureNode, listNodes };

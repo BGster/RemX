@@ -11,7 +11,7 @@
 import { Command } from "commander";
 import {
   listNodes,
-  insertRelation,
+  insertTriple,
   deleteRelation,
   queryRelations,
   getRelatedNodes,
@@ -86,13 +86,13 @@ export function makeRelateCommand(): Command {
 
       const ctx = context === "global" || context === "null" ? null : context;
 
-      const relId = insertRelation({
+      const relId = insertTriple({
         dbPath: db,
         relType: relType as RelType,
         nodeIds,
-        roles: roleList,
+        roles: roleList as any,
         context: ctx,
-        description: description ?? null,
+        description: description ?? undefined,
       });
 
       console.log(`rel_id=${relId}`);

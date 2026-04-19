@@ -145,6 +145,36 @@ export function initDb(dbPath: string, dimensions = 1024, reset = false): void {
     d.exec(`CREATE INDEX IF NOT EXISTS idx_lifecycle_status     ON remx_lifecycle(status)`);
     d.exec(`CREATE INDEX IF NOT EXISTS idx_lifecycle_deprecated ON remx_lifecycle(deprecated)`);
     d.exec(`CREATE INDEX IF NOT EXISTS idx_lifecycle_expires_at ON remx_lifecycle(expires_at)`);
+
+    // ─── Topology tables (moved from triple-store.ts) ────────────────────────────
+    d.exec(`
+CREATE TABLE IF NOT EXISTS memory_nodes (
+    id          TEXT PRIMARY KEY,
+    category    TEXT NOT NULL,
+    chunk       TEXT NOT NULL,
+    created_at  INTEGER DEFAULT (unixepoch('now', 'subsec'))
+)`);
+    d.exec(`
+CREATE TABLE IF NOT EXISTS memory_relations (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    rel_type    TEXT NOT NULL CHECK (rel_type IN (
+        '因果关系', '相关性', '对立性', '流程顺序性', '组成性', '依赖性'
+    )),
+    context     TEXT DEFAULT NULL,
+    description TEXT,
+    created_at  INTEGER DEFAULT (unixepoch('now', 'subsec'))
+)`);
+    d.exec(`
+CREATE TABLE IF NOT EXISTS memory_relation_participants (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    relation_id INTEGER NOT NULL REFERENCES memory_relations(id) ON DELETE CASCADE,
+    node_id     TEXT NOT NULL REFERENCES memory_nodes(id) ON DELETE CASCADE,
+    role        TEXT NOT NULL,
+    UNIQUE(relation_id, node_id, role)
+)`);
+    d.exec(`CREATE INDEX IF NOT EXISTS idx_participants_node ON memory_relation_participants(node_id)`);
+    d.exec(`CREATE INDEX IF NOT EXISTS idx_participants_rel  ON memory_relation_participants(relation_id)`);
+    d.exec(`CREATE INDEX IF NOT EXISTS idx_relations_context ON memory_relations(context)`);
   } finally {
     d.close();
   }

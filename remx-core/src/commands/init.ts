@@ -8,7 +8,6 @@
 import { Command } from "commander";
 import { join } from "path";
 import { initDb } from "../runtime/db";
-import { initSchema } from "../runtime/triple-store";
 import { MetaYamlModel } from "../core/schema";
 
 export function makeInitCommand(): Command {
@@ -31,7 +30,6 @@ export function makeInitCommand(): Command {
     }
 
     initDb(db, dimensions, reset);
-    initSchema(db);
     console.log(`[remx] database initialized: ${db} (dimensions=${dimensions})${reset ? " (reset)" : ""}`);
   });
 

@@ -50,7 +50,7 @@ export {
 } from "./memory/recall";
 
 // memory/crud — aligned with OpenClaw files/chunks model
-// Removed: initSchema (use runtime/db initDb), createChunk, updateChunk (replaced by upsertChunk)
+// Removed: initSchema (now part of initDb), createChunk, updateChunk (replaced by upsertChunk)
 export {
   getMemoryById,
   listMemories,
@@ -83,7 +83,6 @@ export {
 
 // Runtime layer
 export {
-  initSchema,
   insertTriple,
   queryTriples,
   deleteTriple,

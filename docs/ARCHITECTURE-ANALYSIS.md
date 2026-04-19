@@ -201,12 +201,14 @@ initDb() 结构：
 - [x] 改造 5 个文件都 import shared/db
 - [x] 验证 `remx init / index / retrieve / gc / relate` 全流程正常
 
-### Phase 3：清理拓扑建表（需要完整测试）
+### Phase 3：清理拓扑建表 ✅
 
-- [ ] 将拓扑表 DDL 移入 `runtime/db.ts`
-- [ ] `initDb()` 同时建 RemX 表 + 拓扑表
-- [ ] 删除 `TOPOLOGY_TABLES_SQL` 和 `initSchema()`
-- [ ] 验证 `remx init` 后拓扑功能正常
+- [x] 将拓扑表 DDL 移入 `runtime/db.ts`
+- [x] `initDb()` 同时建 RemX 表 + 拓扑表
+- [x] 删除 `TOPOLOGY_TABLES_SQL` 和 `initSchema()`
+- [x] 验证 `remx init` 后拓扑功能正常
+
+> ✅ **2026-04-20**：拓扑表 DDL 已移入 `initDb()`，`initSchema()` 已删除。`relate insert/query`、`index`、`stats`、`gc --dry-run` 全部通过。
 
 ### Phase 4：清理死代码
 
