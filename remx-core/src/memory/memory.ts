@@ -14,7 +14,7 @@ import { join } from "path";
 import Database from "better-sqlite3";
 import { accessSync } from "fs";
 
-import { getDb, DEFAULT_DB } from "../shared/db";
+import { getDb, DEFAULT_DB, findVecExtension } from "../shared/db";
 import { ensureNode } from "./graph";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -549,7 +549,6 @@ export interface RetrieveFilter {
  * Virtual vector table (vec0) requires sqlite-vec extension loaded first.
  */
 export function initDb(dbPath: string, dimensions = 1024, reset = false): void {
-  const { findVecExtension } = require("../shared/db");
   const d = getDb(dbPath);
   try {
     const vecExt = findVecExtension();

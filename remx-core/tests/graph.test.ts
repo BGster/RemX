@@ -1,6 +1,6 @@
 /**
- * topology.test.ts
- * Unit tests for remx-core/src/memory/topology.ts
+ * graph.test.ts
+ * Unit tests for remx-core/src/memory/graph.ts
  *
  * Covers: REL_TYPES / REL_ROLES constants, Node CRUD,
  * Relation CRUD, Graph Traversal (BFS), Context Matching,
@@ -29,8 +29,8 @@ import {
   topologyAwareRecall,
   type RelType,
   type RelRole,
-} from "../src/memory/topology";
-import { initDb } from "../src/runtime/db";
+} from "../src/memory/graph";
+import { initDb } from "../src/memory/memory";
 import { join } from "path";
 import { mkdtempSync, rmSync } from "fs";
 
