@@ -1,6 +1,6 @@
 import { join, dirname } from "path";
 import { platform, arch } from "os";
-import { accessSync, existsSync } from "fs";
+import { existsSync } from "fs";
 import Database from "better-sqlite3";
 
 export const DEFAULT_DB = join(process.env.HOME ?? ".", ".openclaw", "memory", "main.sqlite");
@@ -42,19 +42,24 @@ function getVecExtName(): string {
  *    (works regardless of node_modules nesting level in workspaces)
  * 3. Fall back to searching relative to better-sqlite3 and this file
  *
- * Returns null if no vec extension is available (not an error — vec is optional).
+ * Throws if the extension cannot be found for the current platform.
  */
-export function findVecExtension(): string | null {
+export function findVecExtension(): string {
   const pkg = getVecPackageName();
   const ext = getVecExtName();
 
-  if (pkg) {
-    // Primary strategy: require.resolve from the package itself
-    try {
-      return require.resolve(`${pkg}/${ext}`);
-    } catch {
-      // pkg not installed or doesn't include this file — fall through
-    }
+  if (!pkg) {
+    throw new Error(
+      `[RemX] sqlite-vec is not supported on platform "${platform()}" (arch: ${arch()}). ` +
+      `Supported platforms: linux-x64, linux-arm64, darwin-x64, darwin-arm64, win32-x64.`
+    );
+  }
+
+  // Primary strategy: require.resolve from the package itself
+  try {
+    return require.resolve(`${pkg}/${ext}`);
+  } catch {
+    // fall through to fallback search
   }
 
   // Fallback: search relative to known packages / this file
@@ -82,7 +87,15 @@ export function findVecExtension(): string | null {
     if (existsSync(p)) return p;
   }
 
-  return null;
+  const hint: Record<string, string> = {
+    linux:   "Run: npm install sqlite-vec-linux-x64",
+    darwin:  "Run: npm install sqlite-vec-darwin-x64 (or sqlite-vec-darwin-arm64 on Apple Silicon)",
+    win32:   "Run: npm install sqlite-vec-windows-x64",
+  };
+  const curPlatform = platform();
+  throw new Error(
+    `[RemX] sqlite-vec extension not found for platform "${curPlatform}" (arch: ${arch()}). ${hint[curPlatform] ?? ""}`
+  );
 }
 
 // ─── Database connection ──────────────────────────────────────────────────────
@@ -92,12 +105,11 @@ export function getDb(dbPath?: string): Database.Database {
   d.pragma("journal_mode = WAL");
   d.pragma("foreign_keys = ON");
   const vecExt = findVecExtension();
-  if (vecExt) {
-    try {
-      d.loadExtension(vecExt);
-    } catch {
-      // vec0 unavailable on this platform — continue without vector search
-    }
+  try {
+    d.loadExtension(vecExt);
+  } catch (e) {
+    d.close();
+    throw new Error(`[RemX] Failed to load sqlite-vec extension from "${vecExt}": ${(e as Error).message}`);
   }
   return d;
 }
