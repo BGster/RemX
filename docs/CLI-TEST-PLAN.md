@@ -11,10 +11,9 @@
 remx-core 已通过 vitest 单元测试覆盖核心模块（`triple-store.ts`、`topology.ts`）。本测试方案将这些覆盖映射到 CLI 命令行接口，确保每个 CLI 命令在端到端场景下可正常工作。
 
 **已有单元测试覆盖（vitest）：**
-- `triple-store.test.ts` — Schema / Node / Triple / parseParticipants
-- `topology.test.ts` — Constants / Node CRUD / Relation CRUD / Graph BFS / Context Matching / Topology-Aware Recall
+- `graph.test.ts` — Constants / Node CRUD / Relation CRUD / Graph BFS / Context Matching / Topology-Aware Recall (renamed from `topology.test.ts`)
 
-**最新测试结果：73 tests, 2 test files, 全部通过 ✅**
+**最新测试结果：43 tests, 1 test file, 全部通过 ✅**
 
 **Schema 重构说明（2026-04-19）：**
 remx-core 存储层已从旧 `memories`/`chunks` 表迁移至 OpenClaw 对齐的 `files`/`chunks`/`remx_lifecycle` 模型。相关单元测试不受影响（测试夹具独立初始化）。
@@ -312,7 +311,7 @@ tests/fixtures/
 | TC-11 | `remx gc --dry-run` 识别过期/废弃记忆 | ✅ | 识别到 1 条 deprecated tmp 记忆（meeting-notes-tmp.md）|
 | TC-12 | `remx gc --purge` 清理废弃记忆 | ✅ | tmp 被清理，knowledge 不受影响 |
 | TC-13 | `remx index` 索引记忆文件 | ✅ | 自动写入 files+remx_lifecycle+chunks |
-| vitest | 73 tests, 2 test files | ✅ | triple-store + topology |
+| vitest | 43 tests, 1 test file | ✅ | graph |
 
 
 **Bug 记录（2026-04-19）：**
@@ -387,21 +386,19 @@ npx vitest run --reporter=verbose  # 详细输出
 ```
 
 **测试文件：**
-- `tests/triple-store.test.ts` — 覆盖 `src/runtime/triple-store.ts`
-- `tests/topology.test.ts` — 覆盖 `src/memory/topology.ts`
+- `tests/graph.test.ts` — 覆盖 `src/memory/graph.ts` (v0.3.0 重命名自 `topology.test.ts`)
 
 **覆盖范围：**
 
 | 模块 | 测试内容 |
 |------|---------|
-| Schema init | `TOPOLOGY_TABLES_SQL` 正确执行、表结构完整 |
-| Node CRUD | `ensureNode`/`upsertNode`/`getNode`/`listNodes`/`deleteNode` |
-| Triple CRUD | `insertTriple`/`queryTriples`/`deleteTriple`/`listTriples` |
-| parseParticipants | 关系参与者解析（cause/effect/component/whole 角色）|
+| Schema init | `initDb()` 正确执行、表结构完整 |
+| Node CRUD | `ensureNode`/`getNode`/`listNodes`/`deleteNode` |
+| Triple CRUD | `insertTriple` |
 | REL_TYPES / REL_ROLES | 常量数组与对象的合法性 |
 | Relation CRUD | `insertRelation`/`deleteRelation`/`queryRelations` |
 | Graph BFS | `getRelatedNodes` 深度遍历、循环检测、深度计数 |
 | Context Matching | `matchContext` null/global/特定上下文匹配 |
 | Topology-Aware Recall | `topologyAwareRecall` 扩展结果、去重、深度限制 |
 
-**73 个测试全部通过。**
+**43 个测试全部通过。**

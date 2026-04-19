@@ -15,100 +15,61 @@
 
 ## 二、问题清单
 
-### P1 — `getDb()` 重复定义（已修复）
+> ⚠️ **v0.3.0 重构状态（2026-04-20）**：以下问题已通过重构修复，文档保留作为历史参考。
 
-**涉及文件：**
-- `src/runtime/db.ts`（有 vec0 加载）
-- `src/memory/crud.ts`（无 vec0 加载）← 刚修
-- `src/memory/topology.ts`（无 vec0 加载）
-- `src/memory/recall.ts`（无 vec0 加载）
-- `src/runtime/triple-store.ts`（独立实现，无 vec0）
+### P1 — `getDb()` 重复定义（✅ 已修复）
 
-**现状：** 共 5 处 `getDb()` 实现，行为不一致。
+**v0.3.0 之前涉及文件：**
+- `src/runtime/db.ts`
+- `src/memory/crud.ts`
+- `src/memory/topology.ts`
+- `src/memory/recall.ts`
+- `src/runtime/triple-store.ts`
 
-| 文件 | vec0 加载 | foreign_keys | WAL |
-|------|-----------|-------------|-----|
-| `runtime/db.ts` | ✅ | ✅ | ✅ |
-| `memory/crud.ts` | ✅（刚修）| ✅ | ✅ |
-| `memory/topology.ts` | ❌ | ❌ | ✅ |
-| `memory/recall.ts` | ❌ | ❌ | ✅ |
-| `runtime/triple-store.ts` | ❌ | ❌ | ✅ |
-
-**风险：** 未加载 vec0 的 `getDb()` 调用 `DELETE FROM chunks_vec` 会报错；未开启 `foreign_keys` 的无法依赖外键级联删除。
+**v0.3.0 修复：** 统一抽取到 `src/shared/db.ts`，所有文件改为 `import { getDb, DEFAULT_DB } from "../shared/db"`。
 
 ---
 
-### P2 — 拓扑表定义重复（P2）
+### P2 — 拓扑表定义重复（P2）（✅ 已修复）
 
-**涉及文件：**
-- `src/memory/topology.ts`：自己建表（`memory_nodes`、`memory_relations`、`memory_relation_participants`）但不包含 `CREATE TABLE` 语句
-- `src/runtime/triple-store.ts`：也有自己的拓扑表定义（`TOPOLOGY_TABLES_SQL`）
-- `src/runtime/db.ts` 的 `initDb()`：只建 `files/chunks/remx_lifecycle`，不建拓扑表
+**v0.3.0 之前涉及文件：** `topology.ts`、`triple-store.ts`、`db.ts`
 
-**问题：** 拓扑表有两套定义。一套在 `topology.ts` 运行时隐式依赖（通过 INSERT 推断表存在），另一套在 `triple-store.ts` 的 `TOPOLOGY_TABLES_SQL`。`init.ts` 调用 `initSchema()`（来自 triple-store），不调用 `topology.ts` 的初始化。
-
-**实际行为：** `remx init` → `initSchema(triple-store)` → 只建 triple-store 的表。`topology.ts` 的表（如 `memory_nodes`）从未被 `CREATE TABLE`，但系统能工作是因为 `topology.ts` 的 `ensureNode` 做了 `INSERT OR IGNORE`，假设表已存在。
-
-**结论：** `topology.ts` 依赖一个从未显式创建的关系 schema。
+**v0.3.0 修复：** 拓扑表 DDL 统一移入 `initDb()`。`topology.ts` 重命名为 `graph.ts`。`runtime/` 目录删除，`triple-store.ts` 删除。
 
 ---
 
-### P3 — 职责边界模糊（P2）
+### P3 — 职责边界模糊（P2）（✅ 已修复）
 
-**具体表现：**
-
-1. **`topology.ts` vs `triple-store.ts` — 谁是拓扑的正确位置？**
-   - `topology.ts` 是拓扑逻辑的核心，有 `ensureNode`、`queryRelations`、`insertRelation`
-   - `triple-store.ts` 是 CLI 封装，暴露 `insertTriple`、`queryTriples`
-   - 但 `topology.ts` 的函数直接操作 DB，**没有调用** triple-store 的 schema init
-   - 两者共用同一套表，但谁负责建表？不清楚
-
-2. **`crud.ts` vs `runtime/db.ts` — 谁负责写 memory？**
-   - `runtime/db.ts` 有 `upsertVector`（写向量）、`retrieve`（检索）、`gcCollect`（GC）
-   - `crud.ts` 有 `upsertMemory`、`upsertChunk`（写文件元数据）
-   - `core/index.ts` 两边都调用：`_writeMemoryToDb` 调用 `crud.ts`，语义检索调用 `runtime/db.ts`
-
-3. **`recall.ts` — 孤岛状态**
-   - 自己的 `getDb()`，自己的 `DEFAULT_DB_PATH`
-   - `semanticRecall()` 目前是 stub（空实现）
-   - 没有被任何命令直接调用，测试也测不到它
-
----
-
-### P4 — `initDb` / `initSchema` 职责不清（P2）
-
-**当前 init 调用链：**
+**v0.3.0 重构后结构：**
 ```
-remx init
-  → runtime/init.ts: initDb()         [runtime/db.ts]  ← 建 files/chunks/remx_lifecycle + chunks_vec
-  → runtime/init.ts: initSchema()     [runtime/triple-store.ts] ← 建 memory_nodes/memory_relations/...
+src/
+├── memory/
+│   ├── graph.ts     ← 图结构 + 遍历（三表 CRUD）← topology.ts 改名
+│   ├── memory.ts    ← CRUD + GC + retrieve（合并自 crud.ts + db.ts）
+│   └── recall.ts    ← 召回逻辑
+├── core/            ← 纯文本处理层
+└── commands/        ← 命令层
 ```
 
-**问题：**
-- `initDb()` 建 RemX 核心表（files/chunks/lifecycle/vec0）
-- `initSchema()` 建拓扑表（memory_nodes/memory_relations/...）
-- 两个 init 在同一个 command 文件里顺序调用，但 schema 设计上这是两个独立的地方
-- **拓扑表从未被 `initDb()` 建**，完全依赖 `initSchema()`，而 `initSchema()` 只在 `remx init` 时被调用
+`runtime/` 目录删除，`triple-store.ts` 删除。
 
 ---
 
-### P5 — `DEFAULT_DB` 路径重复（P3）
+### P4 — `initDb` / `initSchema` 职责不清（P2）（✅ 已修复）
 
-| 位置 | DEFAULT_DB |
-|------|-----------|
-| `runtime/db.ts` | `.openclaw/memory/main.sqlite` |
-| `memory/crud.ts` | `.openclaw/memory/main.sqlite` |
-| `topology.ts` | `.openclaw/memory/main.sqlite` |
-| `recall.ts` | `.openclaw/memory/main.sqlite` |
-| `triple-store.ts` | `.openclaw/memory/main.sqlite` |
-
-5 处重复。改成统一常量后，改路径只需改一处。
+**v0.3.0 修复：** `initSchema()` 删除，`initDb()` 统一建所有表（包括拓扑表）。`runtime/` 删除。
 
 ---
 
-### P6 — `recall.ts` 的 `semanticRecall` 是空 stub（P3）
+### P5 — `DEFAULT_DB` 路径重复（P3）（✅ 已修复）
 
-`semanticRecall()` 直接返回空数组，没有任何实现。所有语义检索实际通过 `runtime/db.ts` 的 `retrieveSemantic()`，两者功能重叠。
+**v0.3.0 修复：** 统一到 `src/shared/db.ts` 导出，`memory/memory.ts`、`memory/graph.ts`、`memory/recall.ts` 均 import 自此处。
+
+---
+
+### P6 — `recall.ts` 的 `semanticRecall` 是空 stub（P3）（✅ 已修复）
+
+**v0.3.0 修复：** `retrieveSemantic()` 保留在 `memory/memory.ts`，`recall.ts` 专注 decay/freshness scoring 和 topology expansion。
 
 ---
 
@@ -186,35 +147,35 @@ initDb() 结构：
 
 ---
 
-## 五、实施计划
+## 五、v0.3.0 重构执行记录
 
-### Phase 1：止血（不改架构，只修 bug）
+> ✅ **2026-04-20 重构完成**
 
-- [x] P1 fix：`crud.ts` 加载 vec0（已提交）
-- [x] P1 fix：`topology.ts` 加载 vec0 + foreign_keys
-- [x] P1 fix：`recall.ts` 加载 foreign_keys
-- [x] P1 fix：`triple-store.ts` 加载 foreign_keys
+| 阶段 | 内容 | 状态 |
+|------|------|------|
+| Phase 0 | 创建 `v0.3.0-refactor` 分支 | ✅ |
+| Phase 1 | `topology.ts` → `graph.ts` | ✅ |
+| Phase 2 | `crud.ts` + `db.ts` → `memory.ts` | ✅ |
+| Phase 3 | 删除 `runtime/triple-store.ts` | ✅ |
+| Phase 4 | 删除 `runtime/` 目录 | ✅ |
+| Phase 5 | 更新 `recall.ts` imports | ✅ |
+| Phase 6 | 更新测试（`topology.test.ts` → `graph.test.ts`，删除 `triple-store.test.ts`）| ✅ |
+| Phase 7 | 更新文档（CLI-TEST-PLAN.md、ARCHITECTURE-ANALYSIS.md）| ✅ |
+| Phase 8 | `npm run build` + `npm test` 全量验收 | ✅ |
 
-### Phase 2：抽取共享层（中等风险，可独立测试） ✅
+**最终结构：**
+```
+remx-core/src/
+├── memory/
+│   ├── graph.ts       ← 图结构 + 遍历（三表 CRUD）
+│   ├── memory.ts      ← CRUD + GC + retrieve
+│   └── recall.ts      ← 召回逻辑
+├── core/              ← 纯文本处理层
+├── shared/db.ts        ← 统一 getDb/DEFAULT_DB
+└── commands/           ← 命令层
+```
 
-- [x] 创建 `src/shared/db.ts`
-- [x] 改造 5 个文件都 import shared/db
-- [x] 验证 `remx init / index / retrieve / gc / relate` 全流程正常
-
-### Phase 3：清理拓扑建表 ✅
-
-- [x] 将拓扑表 DDL 移入 `runtime/db.ts`
-- [x] `initDb()` 同时建 RemX 表 + 拓扑表
-- [x] 删除 `TOPOLOGY_TABLES_SQL` 和 `initSchema()`
-- [x] 验证 `remx init` 后拓扑功能正常
-
-> ✅ **2026-04-20**：拓扑表 DDL 已移入 `initDb()`，`initSchema()` 已删除。`relate insert/query`、`index`、`stats`、`gc --dry-run` 全部通过。
-
-### Phase 4：清理死代码 ✅
-
-- [x] 清理死代码（`initSchema` 已从 `index.ts` 移除，`TOPOLOGY_TABLES_SQL` 已从 `triple-store.ts` 移除）
-- [x] 修复单元测试（`triple-store.test.ts` 和 `topology.test.ts` 改用 `initDb` 初始化测试数据库）
-- [x] 完整测试套件通过：73 单元测试 + CLI 集成测试全部 0 退出码
+**测试结果：** 43 tests, 1 test file（`graph.test.ts`）, 全部通过
 
 ---
 
