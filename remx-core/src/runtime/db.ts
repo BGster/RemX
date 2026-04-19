@@ -8,6 +8,8 @@
 
 import { join } from "path";
 import Database from "better-sqlite3";
+import { getDb, DEFAULT_DB, findVecExtension } from "../shared/db";
+export { getDb, DEFAULT_DB };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,33 +105,7 @@ FOREIGN KEY (path) REFERENCES files(path) ON DELETE CASCADE
 
 // ─── DB Path ─────────────────────────────────────────────────────────────────
 
-const DEFAULT_DB = join(process.env.HOME ?? ".", ".openclaw", "memory", "main.sqlite");
-
-export function getDb(dbPath?: string): Database.Database {
-  const d = new Database(dbPath ?? DEFAULT_DB);
-  d.pragma("journal_mode = WAL");
-  d.pragma("foreign_keys = ON");
-  // Load sqlite-vec extension for vec0 virtual table support
-  const vecExt = findVecExtension();
-  if (vecExt) {
-    try { d.loadExtension(vecExt); } catch { /* vec0 unavailable */ }
-  }
-  return d;
-}
-
 // ─── Init ────────────────────────────────────────────────────────────────────
-
-// Path to sqlite-vec extension (installed via npm install sqlite-vec)
-function findVecExtension(): string | null {
-  const candidates = [
-    `${__dirname}/../../../node_modules/sqlite-vec-linux-x64/vec0.so`,
-    `${__dirname}/../../node_modules/sqlite-vec-linux-x64/vec0.so`,
-  ];
-  for (const p of candidates) {
-    try { require('fs').accessSync(p); return p; } catch { /* skip */ }
-  }
-  return null;
-}
 
 /**
  * Initialize database with files/chunks/remx_lifecycle tables.

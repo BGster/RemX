@@ -195,11 +195,11 @@ initDb() 结构：
 - [x] P1 fix：`recall.ts` 加载 foreign_keys
 - [x] P1 fix：`triple-store.ts` 加载 foreign_keys
 
-### Phase 2：抽取共享层（中等风险，可独立测试）
+### Phase 2：抽取共享层（中等风险，可独立测试） ✅
 
-- [ ] 创建 `src/shared/db.ts`
-- [ ] 改造 5 个文件都 import shared/db
-- [ ] 验证 `remx init / index / retrieve / gc / relate` 全流程正常
+- [x] 创建 `src/shared/db.ts`
+- [x] 改造 5 个文件都 import shared/db
+- [x] 验证 `remx init / index / retrieve / gc / relate` 全流程正常
 
 ### Phase 3：清理拓扑建表（需要完整测试）
 

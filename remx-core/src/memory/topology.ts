@@ -10,6 +10,8 @@ import Database from "better-sqlite3";
 import { accessSync } from "fs";
 import { join } from "path";
 
+import { getDb, DEFAULT_DB } from "../shared/db";
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const REL_TYPES_ARRAY = [
@@ -69,30 +71,6 @@ export interface RelatedNodeData {
   node: MemoryNode;
   relations: RelationWithParticipants[];
   depth: number;
-}
-
-// ─── DB Path Helper ──────────────────────────────────────────────────────────
-
-const DEFAULT_DB_PATH = join(process.env.HOME ?? "", ".openclaw", "memory", "main.sqlite");
-
-function findVecExtension(): string | null {
-  const candidates = [
-    `${__dirname}/../../../node_modules/sqlite-vec-linux-x64/vec0.so`,
-    `${__dirname}/../../node_modules/sqlite-vec-linux-x64/vec0.so`,
-  ];
-  for (const p of candidates) {
-    try { accessSync(p); return p; } catch { /* skip */ }
-  }
-  return null;
-}
-
-export function getDb(dbPath?: string): Database.Database {
-  const db = new Database(dbPath ?? DEFAULT_DB_PATH);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  const vecExt = findVecExtension();
-  if (vecExt) { try { db.loadExtension(vecExt); } catch { /* vec0 unavailable */ } }
-  return db;
 }
 
 // ─── Node CRUD ───────────────────────────────────────────────────────────────
@@ -175,7 +153,7 @@ export function insertRelation(opts: InsertRelationOptions): number {
     }
   }
 
-  const db = getDb(dbPath ?? DEFAULT_DB_PATH);
+  const db = getDb(dbPath ?? DEFAULT_DB);
   try {
     const ctx = context ?? DEFAULT_CONTEXT;
     const stmt = db.prepare(
@@ -353,7 +331,7 @@ export function topologyAwareRecall(
   opts: TopologyRecallOptions = {}
 ): Array<Record<string, unknown> & { source: "topology"; depth: number }> {
   const {
-    dbPath = DEFAULT_DB_PATH,
+    dbPath = DEFAULT_DB,
     currentContext,
     maxDepth = 2,
     maxAdditional = 10,

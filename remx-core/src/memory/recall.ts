@@ -10,6 +10,8 @@
 
 import { join } from "path";
 import Database from "better-sqlite3";
+
+import { getDb, DEFAULT_DB } from "../shared/db";
 import {
   topologyAwareRecall,
   queryRelations,
@@ -50,17 +52,6 @@ export interface RelevanceScore {
   vector: number;
   decay: number;
   freshness: number;
-}
-
-// ─── DB Helpers ───────────────────────────────────────────────────────────────
-
-const DEFAULT_DB_PATH = join(process.env.HOME ?? "", ".openclaw", "memory", "main.sqlite");
-
-function getDb(dbPath?: string): Database.Database {
-  const d = new Database(dbPath ?? DEFAULT_DB_PATH);
-  d.pragma("journal_mode = WAL");
-  d.pragma("foreign_keys = ON");
-  return d;
 }
 
 // ─── Decay Scoring ───────────────────────────────────────────────────────────
@@ -206,7 +197,7 @@ export function topologyRecall(
   opts: RecallOptions = {}
 ): Array<Record<string, unknown> & { source: "topology"; depth: number }> {
   return topologyAwareRecall(baseResults, {
-    dbPath: opts.dbPath ?? DEFAULT_DB_PATH,
+    dbPath: opts.dbPath ?? DEFAULT_DB,
     currentContext: opts.currentContext,
     maxDepth: opts.maxDepth ?? 2,
     maxAdditional: opts.maxAdditional ?? 10,
@@ -240,7 +231,7 @@ export async function unifiedRecall(
   opts: UnifiedRecallOptions = {}
 ): Promise<RecallResult[]> {
   const {
-    dbPath = DEFAULT_DB_PATH,
+    dbPath = DEFAULT_DB,
     currentContext = DEFAULT_CONTEXT,
     limit = 20,
     decayWeight = 0.3,
@@ -348,7 +339,7 @@ export function judgeRelevance(
     queryCategory?: string;
   } = {}
 ): RelevanceJudgment {
-  const { dbPath = DEFAULT_DB_PATH, currentContext = DEFAULT_CONTEXT, queryCategory } = opts;
+  const { dbPath = DEFAULT_DB, currentContext = DEFAULT_CONTEXT, queryCategory } = opts;
 
   const rels = queryRelations(dbPath, nodeId, currentContext);
   const reasons: string[] = [];

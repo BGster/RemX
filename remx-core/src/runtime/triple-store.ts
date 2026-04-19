@@ -9,18 +9,9 @@
 
 import { join } from "path";
 import Database from "better-sqlite3";
+
+import { getDb, DEFAULT_DB } from "../shared/db";
 import { insertRelation, deleteRelation, queryRelations, listNodes, ensureNode, type RelType, type RelRole, type MemoryNode } from "../memory/topology";
-
-// ─── DB Path ─────────────────────────────────────────────────────────────────
-
-const DEFAULT_DB = join(process.env.HOME ?? "", ".openclaw", "memory", "main.sqlite");
-
-function getDb(dbPath?: string): Database.Database {
-  const d = new Database(dbPath ?? DEFAULT_DB);
-  d.pragma("journal_mode = WAL");
-  d.pragma("foreign_keys = ON");
-  return d;
-}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
