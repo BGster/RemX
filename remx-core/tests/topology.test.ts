@@ -27,11 +27,10 @@ import {
   getRelatedNodes,
   matchContext,
   topologyAwareRecall,
-  initSchema,
   type RelType,
   type RelRole,
 } from "../src/memory/topology";
-import { TOPOLOGY_TABLES_SQL } from "../src/runtime/triple-store";
+import { initDb } from "../src/runtime/db";
 import { join } from "path";
 import { mkdtempSync, rmSync } from "fs";
 
@@ -44,11 +43,8 @@ function freshDb(): { path: string; close: () => void } {
   const db = new Database(path);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
-  // Init topology schema
-  for (const stmt of TOPOLOGY_TABLES_SQL.trim().split(";")) {
-    const s = stmt.trim();
-    if (s) db.exec(s);
-  }
+  // initDb creates all tables including topology tables
+  initDb(path);
   return {
     path,
     close: () => {

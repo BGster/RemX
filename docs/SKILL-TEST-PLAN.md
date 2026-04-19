@@ -4,7 +4,7 @@
 **日期：** 2026-04-20  
 **状态：** 全部通过 ✅
 
-**阻塞问题：** vec0 模块加载异常 — CLI 层 `remx index` 报错 `no such module: vec0`，但直接 node 调用正常。影响 STC-3/4 子会话测试（需要 `remx index` 索引新建记忆）
+**阻塞问题：** 无。vec0 扩展加载问题已在 Phase 2 修复（`src/shared/db.ts` 统一 `getDb`），所有 CLI 命令正常。
 
 ---
 

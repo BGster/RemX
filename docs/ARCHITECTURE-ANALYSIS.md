@@ -210,10 +210,11 @@ initDb() 结构：
 
 > ✅ **2026-04-20**：拓扑表 DDL 已移入 `initDb()`，`initSchema()` 已删除。`relate insert/query`、`index`、`stats`、`gc --dry-run` 全部通过。
 
-### Phase 4：清理死代码
+### Phase 4：清理死代码 ✅
 
-- [ ] 评估 `recall.ts` 定位，删除冗余 semanticRecall 或实现它
-- [ ] 统一 `DEFAULT_DB` 路径常量
+- [x] 清理死代码（`initSchema` 已从 `index.ts` 移除，`TOPOLOGY_TABLES_SQL` 已从 `triple-store.ts` 移除）
+- [x] 修复单元测试（`triple-store.test.ts` 和 `topology.test.ts` 改用 `initDb` 初始化测试数据库）
+- [x] 完整测试套件通过：73 单元测试 + CLI 集成测试全部 0 退出码
 
 ---
 

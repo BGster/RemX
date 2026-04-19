@@ -12,7 +12,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import {
-  initSchema,
   ensureNode,
   listNodes,
   getNode,
@@ -24,7 +23,7 @@ import {
   listTriples,
   parseParticipants,
 } from "../src/runtime/triple-store";
-import { TOPOLOGY_TABLES_SQL } from "../src/runtime/triple-store";
+import { initDb } from "../src/runtime/db";
 import { join } from "path";
 import { rmSync } from "fs";
 
@@ -35,10 +34,8 @@ function freshDb(): { path: string; close: () => void } {
   const db = new Database(path);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
-  for (const stmt of TOPOLOGY_TABLES_SQL.trim().split(";")) {
-    const s = stmt.trim();
-    if (s) db.exec(s);
-  }
+  // initDb creates all tables including topology tables
+  initDb(path);
   return {
     path,
     close: () => {
