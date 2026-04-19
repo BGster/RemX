@@ -14,7 +14,7 @@ import { join } from "path";
 import Database from "better-sqlite3";
 import { accessSync } from "fs";
 
-import { getDb, DEFAULT_DB, findVecExtension } from "../shared/db";
+import { getDb, DEFAULT_DB, findVecExtension } from "../core/db";
 import { ensureNode } from "./graph";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -492,9 +492,9 @@ export function findExpiredMemories(dbPath?: string): Memory[] {
   return listMemories({ deprecated: 0, expires_at_lt: nowIso() }, dbPath);
 }
 
-// ─── Re-exported from shared/db ───────────────────────────────────────────────
+// ─── Re-exported from core/db ───────────────────────────────────────────────
 
-export { getDb, DEFAULT_DB } from "../shared/db";
+export { getDb, DEFAULT_DB } from "../core/db";
 
 // ─── Types from runtime/db ─────────────────────────────────────────────────
 

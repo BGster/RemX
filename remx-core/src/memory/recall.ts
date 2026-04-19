@@ -11,7 +11,7 @@
 import { join } from "path";
 import Database from "better-sqlite3";
 
-import { getDb, DEFAULT_DB } from "../shared/db";
+import { getDb, DEFAULT_DB } from "../core/db";
 import {
   topologyAwareRecall,
   queryRelations,

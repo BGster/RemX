@@ -10,7 +10,7 @@ import Database from "better-sqlite3";
 import { accessSync } from "fs";
 import { join } from "path";
 
-import { getDb, DEFAULT_DB } from "../shared/db";
+import { getDb, DEFAULT_DB } from "../core/db";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
