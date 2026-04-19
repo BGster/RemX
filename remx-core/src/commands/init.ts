@@ -7,7 +7,7 @@
  */
 import { Command } from "commander";
 import { join } from "path";
-import { initDb } from "../runtime/db";
+import { initDb } from "../memory/memory";
 import { MetaYamlModel } from "../core/schema";
 
 export function makeInitCommand(): Command {

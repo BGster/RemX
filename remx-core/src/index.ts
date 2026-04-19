@@ -48,8 +48,7 @@ export {
   type UnifiedRecallOptions,
 } from "./memory/recall";
 
-// memory/crud — aligned with OpenClaw files/chunks model
-// Removed: initSchema (now part of initDb), createChunk, updateChunk (replaced by upsertChunk)
+// memory/memory — aligned with OpenClaw files/chunks model (merged from crud + db)
 export {
   getMemoryById,
   listMemories,
@@ -78,7 +77,7 @@ export {
   type UpdateMemoryOptions,
   type DeleteOptions,
   type MemoryFilter,
-} from "./memory/crud";
+} from "./memory/memory";
 
 // Runtime layer
 export {
@@ -113,7 +112,7 @@ export {
   type MetaYaml,
 } from "./core/schema";
 
-// runtime/db
+// memory/memory (merged from runtime/db)
 export {
   initDb,
   gcCollect,
@@ -121,7 +120,6 @@ export {
   gcPurge,
   retrieve,
   retrieveSemantic,
-  nowIso,
   expiresAtTtl,
   expiresAtStale,
   type GcCollectResult,
@@ -129,4 +127,4 @@ export {
   type GcPurgeResult,
   type RetrieveRow,
   type RetrieveFilter,
-} from "./runtime/db";
+} from "./memory/memory";

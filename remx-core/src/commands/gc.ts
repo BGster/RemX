@@ -10,7 +10,7 @@
  * default    : soft-delete expired + deprecated (gcSoftDelete)
  */
 import { Command } from "commander";
-import { gcCollect, gcSoftDelete, gcPurge } from "../runtime/db";
+import { gcCollect, gcSoftDelete, gcPurge } from "../memory/memory";
 
 export function makeGcCommand(): Command {
   const cmd = new Command("gc");

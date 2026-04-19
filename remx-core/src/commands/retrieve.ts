@@ -9,7 +9,7 @@
  * Semantic mode (with --query): loads embedder from meta.yaml, embeds query, calls retrieveSemantic()
  */
 import { Command } from "commander";
-import { retrieve, retrieveSemantic, type RetrieveFilter } from "../runtime/db";
+import { retrieve, retrieveSemantic, type RetrieveFilter } from "../memory/memory";
 import { MetaYamlModel } from "../core/schema";
 import { createEmbedder } from "../core/embedder";
 import { embedQueryWithEmbedder } from "../index";

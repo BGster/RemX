@@ -26,11 +26,11 @@ import {
   type Chunk,
 } from "./chunker";
 import { parseFrontMatter } from "./storage";
-import { initDb, upsertVector } from "../runtime/db";
-import { upsertMemory, upsertChunk, createMemoryWithChunks, contentHash, type Priority, type MemoryStatus, type MemoryType } from "../memory/crud";
+import { initDb, upsertVector } from "../memory/memory";
+import { upsertMemory, upsertChunk, createMemoryWithChunks, contentHash, type Priority, type MemoryStatus, type MemoryType } from "../memory/memory";
 import type { Embedder } from "./embedder";
 import { MetaYamlModel, type IndexScope } from "./schema";
-import { expiresAtStale, expiresAtTtl } from "../runtime/db";
+import { expiresAtStale, expiresAtTtl } from "../memory/memory";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -297,7 +297,7 @@ async function _checkSemanticDedup(
   const dupes: Array<{ chunkId: string; existingPath: string; similarity: number }> = [];
 
   // Load existing embeddings from chunks_vec (vec0 virtual table, Float32 Buffer)
-  const { getDb } = await import("../runtime/db");
+  const { getDb } = await import("../memory/memory");
   const d = getDb(dbPath);
   try {
     const rows = d
@@ -357,7 +357,7 @@ async function _writeMemoryToDb(
 ): Promise<void> {
   initDb(dbPath);
 
-  const { upsertMemory, upsertChunk } = await import("../memory/crud");
+  const { upsertMemory, upsertChunk } = await import("../memory/memory");
 
   // Embed chunks if embedder is provided
   if (embedder) {
@@ -370,7 +370,7 @@ async function _writeMemoryToDb(
 
   // If front-matter status was "deprecated", soft-delete the memory immediately
   if ((memory["_deprecated"] as number) === 1) {
-    const { deleteMemory } = await import("../memory/crud");
+    const { deleteMemory } = await import("../memory/memory");
     const path = memory["path"] as string;
     // Write memory first so it exists, then soft-delete
     upsertMemory(
