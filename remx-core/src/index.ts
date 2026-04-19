@@ -20,6 +20,7 @@ export {
   type RelationWithParticipants,
   type RelatedNodeData,
   type BaseResult,
+  type InsertTripleOptions,
   ensureNode,
   listNodes,
   deleteNode as deleteTopologyNode,
@@ -29,6 +30,7 @@ export {
   getRelatedNodes,
   matchContext,
   topologyAwareRecall,
+  insertTriple,
 } from "./memory/graph";
 
 // memory/recall
@@ -78,20 +80,6 @@ export {
   type DeleteOptions,
   type MemoryFilter,
 } from "./memory/memory";
-
-// Runtime layer
-export {
-  insertTriple,
-  queryTriples,
-  deleteTriple,
-  listTriples,
-  parseParticipants,
-  cliRun,
-  upsertNode,
-  type InsertTripleOptions,
-  type QueryTriplesOptions,
-  type TripleRow,
-} from "./runtime/triple-store";
 
 // core/schema
 export {

@@ -372,3 +372,40 @@ export function topologyAwareRecall(
 
   return topologyAdded;
 }
+
+// ─── Triple Convenience Wrapper ──────────────────────────────────────────────
+
+export interface InsertTripleOptions {
+  relType: RelType;
+  nodeIds: string[];
+  roles?: RelRole[];
+  context?: string;
+  description?: string;
+  dbPath?: string;
+}
+
+/**
+ * Insert a new triple (relation + participants).
+ * Ensures participant nodes exist before linking.
+ */
+export function insertTriple(opts: InsertTripleOptions): number {
+  const { relType, nodeIds, roles = [], context, description, dbPath } = opts;
+
+  // Ensure all participant nodes exist
+  for (const nodeId of nodeIds) {
+    ensureNode(dbPath ?? DEFAULT_DB, nodeId, "unknown", "");
+  }
+
+  const fullRoles: RelRole[] = roles.length >= nodeIds.length
+    ? roles
+    : [...roles, ...Array(nodeIds.length - roles.length).fill("related" as RelRole)];
+
+  return insertRelation({
+    relType,
+    nodeIds,
+    roles: fullRoles,
+    context,
+    description,
+    dbPath,
+  });
+}
