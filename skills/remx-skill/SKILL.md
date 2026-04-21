@@ -218,9 +218,20 @@ remx gc --db ./memory.db --purge
 
 ---
 
+## 环境配置
+
+在首次使用 remx-skill 前，必须完成环境配置，详见：
+
+- `docs/env-setup.md` — sqlite-vec 安装 + meta.yaml 配置
+- `docs/env-check.md` — 环境检测脚本
+
+**必需项：** sqlite-vec（npm 全局包） + 合法 meta.yaml。
+
+---
+
 ## 配置
 
-主要配置在 `meta.yaml`，参考 `references/remx-cli-commands.md#衰减策略metayaml-decay_groups`。
+主要配置在 `meta.yaml`，参考 `references/remx-cli-commands.md#衰减策略metayaml-decay_groups` 和 `docs/env-setup.md#meta.yaml-配置`。
 
 关键项：
 - `index_scope` — 定义哪些路径算项目记忆
@@ -235,6 +246,9 @@ remx gc --db ./memory.db --purge
 ```
 remx-skill/
 ├── SKILL.md                          ← 本文件
+├── docs/
+│   ├── env-setup.md                 ← sqlite-vec 安装 + meta.yaml 配置
+│   └── env-check.md                  ← 环境检测脚本
 ├── modules/
 │   ├── memory-manager.md             ← 核心决策引擎
 │   ├── context-assembler.md         ← 召回 + 组装
