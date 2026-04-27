@@ -1,5 +1,5 @@
 {
-  "name": "@remx/skill",
+  "name": "@bgster/remx-plugin",
   "version": "0.3.0",
   "description": "RemX Skill — intelligent memory management with hooks for OpenClaw",
   "main": "dist/index.js",

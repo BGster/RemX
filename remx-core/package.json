@@ -1,5 +1,5 @@
 {
-  "name": "remx-core",
+  "name": "@bgster/remx-core",
   "version": "0.3.0",
   "description": "RemX unified memory system — TypeScript core runtime",
   "main": "dist/index.js",

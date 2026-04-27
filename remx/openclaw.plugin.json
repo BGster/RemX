@@ -1,5 +1,5 @@
 {
-  "id": "remx",
+  "id": "@bgster/remx-plugin",
   "name": "RemX",
   "description": "Intelligent memory management with semantic recall and decay for OpenClaw",
   "version": "0.3.0",
